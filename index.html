@@ -46,8 +46,12 @@
             <!-- Welcome Screen -->
             <div id="welcome-screen" class="bg-zinc-900 rounded-3xl p-8 text-center hidden">
                 <i class="fas fa-billiards text-7xl text-emerald-500/20 mb-6"></i>
-                <h2 class="text-2xl font-bold mb-2">Ready to play?</h2>
-                <p class="text-zinc-400 mb-8 text-sm">Start tracking your session</p>
+                <h2 class="text-2xl font-bold mb-6">Ready to play?</h2>
+                <div class="flex items-center justify-center gap-3 mb-8">
+                    <input id="setup-player1-name" class="bg-zinc-800 text-lg font-semibold text-center w-32 px-4 py-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Player 1" value="Drey">
+                    <span class="text-zinc-500">vs</span>
+                    <input id="setup-player2-name" class="bg-zinc-800 text-lg font-semibold text-center w-32 px-4 py-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Player 2" value="Etienne">
+                </div>
                 <button onclick="newSession()" 
                         class="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-lg font-semibold rounded-3xl flex items-center justify-center gap-3 transition-all active:scale-95">
                     <i class="fas fa-plus"></i> Start New Session
@@ -56,37 +60,26 @@
 
             <!-- Current Session -->
             <div id="current-session" class="hidden bg-zinc-900 rounded-3xl p-5 shadow-2xl">
-                <div class="flex justify-between items-center mb-5 bg-zinc-800 rounded-2xl p-3">
-                    <div class="text-emerald-400 text-xs font-medium" id="session-date"></div>
-                    <div class="flex items-center gap-4">
-                        <div class="text-xl font-mono font-bold text-white" id="game-counter">Game 1</div>
-                        <button onclick="endSession()" 
-                                class="text-red-400 hover:text-red-500 text-xs font-medium flex items-center gap-1 bg-zinc-900 px-3 py-1 rounded-xl">
-                            <i class="fas fa-stop"></i> END
-                        </button>
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-center gap-3 mb-6">
-                    <input id="player1-name" class="bg-zinc-800 text-lg font-semibold text-center w-32 px-4 py-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500" onchange="saveCurrentSession()">
-                    <span class="text-zinc-500">vs</span>
-                    <input id="player2-name" class="bg-zinc-800 text-lg font-semibold text-center w-32 px-4 py-2 rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-500" onchange="saveCurrentSession()">
-                </div>
-
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="bg-zinc-800 rounded-3xl p-6 text-center">
+                <div class="flex items-center justify-center gap-4 mb-8">
+                    <div class="flex-1 bg-zinc-800 rounded-3xl p-6 text-center">
                         <div id="player1-score" class="text-6xl font-bold text-emerald-400">0</div>
                         <div id="player1-name-score" class="text-zinc-400 text-sm mt-1"></div>
                     </div>
-                    <div class="bg-zinc-800 rounded-3xl p-6 text-center">
+                    <span class="text-zinc-500 text-2xl font-bold">vs</span>
+                    <div class="flex-1 bg-zinc-800 rounded-3xl p-6 text-center">
                         <div id="player2-score" class="text-6xl font-bold text-amber-400">0</div>
                         <div id="player2-name-score" class="text-zinc-400 text-sm mt-1"></div>
                     </div>
                 </div>
 
+                <div id="game-results" class="mb-8 flex gap-2 flex-wrap bg-zinc-800/50 rounded-2xl p-3 min-h-12 flex items-center"></div>
+
                 <div class="bg-zinc-800/70 rounded-3xl p-5">
-                    <div class="flex justify-between mb-5">
-                        <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-gamepad"></i> Current Game</h3>
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-gamepad"></i> Current Game</h3>
+                            <div class="text-lg font-mono font-bold text-emerald-400" id="game-counter">Game 1</div>
+                        </div>
                         <div id="live-timer" class="timer-display text-emerald-400"></div>
                     </div>
 
@@ -113,6 +106,10 @@
                             </button>
                         </div>
                     </div>
+                    <button onclick="endSession()" 
+                            class="w-full mt-6 py-3 text-red-400 hover:text-red-500 text-sm font-medium flex items-center justify-center gap-2 bg-red-950 hover:bg-red-900 rounded-2xl transition-colors">
+                        <i class="fas fa-stop"></i> END SESSION
+                    </button>
                 </div>
 
                 <div class="mt-8">
@@ -201,12 +198,14 @@
         }
 
         function newSession() {
+            const player1 = document.getElementById('setup-player1-name').value || 'Drey';
+            const player2 = document.getElementById('setup-player2-name').value || 'Etienne';
             currentSession = {
                 id: 'sess_' + Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 startTime: Date.now(),
-                player1: 'Drey',
-                player2: 'Etienne',
+                player1: player1,
+                player2: player2,
                 games: [],
                 completed: false,
                 totalDuration: 0
@@ -225,10 +224,7 @@
 
         function renderCurrentSession() {
             if (!currentSession) return;
-            document.getElementById('session-date').textContent = new Date(currentSession.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-            document.getElementById('player1-name').value = currentSession.player1;
-            document.getElementById('player2-name').value = currentSession.player2;
             document.getElementById('player1-name-score').textContent = currentSession.player1;
             document.getElementById('player2-name-score').textContent = currentSession.player2;
             document.getElementById('win-name-1').textContent = currentSession.player1;
@@ -240,6 +236,25 @@
             currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
             document.getElementById('player1-score').textContent = s1;
             document.getElementById('player2-score').textContent = s2;
+
+            // Populate game results boxes
+            const gameResultsContainer = document.getElementById('game-results');
+            gameResultsContainer.innerHTML = '';
+            if (currentSession.games.length === 0) {
+                gameResultsContainer.innerHTML = '<p class="text-zinc-500 text-xs">No games yet</p>';
+            } else {
+                currentSession.games.forEach(game => {
+                    const isPlayer1Winner = game.winner === 1;
+                    const winner = isPlayer1Winner ? currentSession.player1 : currentSession.player2;
+                    const initial = winner[0].toUpperCase();
+                    const bgColor = isPlayer1Winner ? 'bg-emerald-600' : 'bg-amber-600';
+                    
+                    const box = document.createElement('div');
+                    box.className = `w-10 h-10 rounded-lg ${bgColor} flex items-center justify-center text-sm font-bold text-white flex-shrink-0`;
+                    box.textContent = initial;
+                    gameResultsContainer.appendChild(box);
+                });
+            }
 
             const next = currentSession.games.length + 1;
             document.getElementById('game-counter').textContent = `Game ${next}`;
@@ -385,6 +400,8 @@
                     currentSession = null;
                     document.getElementById('welcome-screen').classList.remove('hidden');
                     document.getElementById('current-session').classList.add('hidden');
+                    document.getElementById('setup-player1-name').value = 'Drey';
+                    document.getElementById('setup-player2-name').value = 'Etienne';
                 }
                 return;
             }
@@ -495,6 +512,8 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
                 currentSession = null;
                 document.getElementById('current-session').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
+                document.getElementById('setup-player1-name').value = 'Drey';
+                document.getElementById('setup-player2-name').value = 'Etienne';
             }
             
             showHistory(); // Refresh list
@@ -503,8 +522,10 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
         function closeSummary() {
             document.getElementById('summary-modal').classList.add('hidden');
             currentSession = null;
-            document.getElementById('welcome-screen').classList.remove('hidden');
             document.getElementById('current-session').classList.add('hidden');
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('setup-player1-name').value = 'Drey';
+            document.getElementById('setup-player2-name').value = 'Etienne';
             showTab('session');
         }
 
@@ -515,8 +536,6 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
 
         function saveCurrentSession() {
             if (!currentSession) return;
-            currentSession.player1 = document.getElementById('player1-name').value || 'Drey';
-            currentSession.player2 = document.getElementById('player2-name').value || 'Etienne';
             saveData();
         }
 
