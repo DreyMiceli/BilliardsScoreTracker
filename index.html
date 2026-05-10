@@ -133,15 +133,19 @@
 
     <!-- Summary Modal -->
     <div id="summary-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-zinc-900 rounded-3xl w-full max-w-md mx-4 p-5">
-            <h2 class="text-2xl font-bold text-center mb-5">Session Complete!</h2>
+        <div class="bg-zinc-900 rounded-3xl w-full max-w-md mx-4 p-5 relative">
+            <button onclick="hideSummary()" aria-label="Close summary" class="absolute top-4 right-4 text-zinc-500 hover:text-white text-lg">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold text-center mb-5">Session Summary</h2>
             <div id="summary-content" class="space-y-5"></div>
             <div class="flex gap-2 mt-6">
-                <button onclick="closeSummary()" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Close</button>
-                <button onclick="shareSession()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium flex items-center justify-center gap-1 text-sm">
+                <button id="resume-summary-btn" onclick="hideSummary()" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Resume</button>
+                <button id="end-session-btn" onclick="confirmCloseSession()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-xl font-medium text-sm">End Session</button>
+                <button id="share-summary-btn" onclick="shareSession()" class="hidden flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium flex items-center justify-center gap-1 text-sm">
                     <i class="fas fa-share-alt text-sm"></i> Share
                 </button>
-                <button onclick="startNewAfterSummary()" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium text-sm">New</button>
+                <button id="close-summary-btn" onclick="hideSummary()" class="hidden flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Close</button>
             </div>
         </div>
     </div>
@@ -398,6 +402,10 @@
                     sessionsHistory = sessionsHistory.filter(s => s.id !== currentSession?.id);
                     localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
                     currentSession = null;
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
                     document.getElementById('welcome-screen').classList.remove('hidden');
                     document.getElementById('current-session').classList.add('hidden');
                     document.getElementById('setup-player1-name').value = 'Drey';
@@ -405,10 +413,6 @@
                 }
                 return;
             }
-            currentSession.endTime = Date.now();
-            currentSession.totalDuration = Math.floor((currentSession.endTime - currentSession.startTime) / 1000);
-            currentSession.completed = true;
-            saveData();
             showSummary();
         }
 
@@ -418,7 +422,8 @@
             let s1 = 0, s2 = 0;
             currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
             const totalGames = currentSession.games.length;
-            const avg = totalGames ? Math.floor(currentSession.totalDuration / totalGames) : 0;
+            const totalDuration = currentSession.totalDuration || Math.floor((Date.now() - currentSession.startTime) / 1000);
+            const avg = totalGames ? Math.floor(totalDuration / totalGames) : 0;
 
             content.innerHTML = `
                 <div class="text-center">
@@ -431,10 +436,15 @@
                     <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold">${totalGames}</div><div class="text-xs text-zinc-400">GAMES</div></div>
                 </div>
                 <div class="mt-4 bg-zinc-800 rounded-xl p-4 grid grid-cols-2 gap-4 text-center">
-                    <div><div class="text-lg font-medium">${Math.floor(currentSession.totalDuration/60)}:${(currentSession.totalDuration%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">TOTAL</div></div>
+                    <div><div class="text-lg font-medium">${Math.floor(totalDuration/60)}:${(totalDuration%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">TOTAL</div></div>
                     <div><div class="text-lg font-medium">${Math.floor(avg/60)}:${(avg%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">AVG/GAME</div></div>
                 </div>
             `;
+            document.getElementById('resume-summary-btn').classList.remove('hidden');
+            document.getElementById('end-session-btn').classList.remove('hidden');
+            document.getElementById('share-summary-btn').classList.add('hidden');
+            document.getElementById('close-summary-btn').classList.add('hidden');
+            modal.dataset.closed = 'false';
             modal.classList.remove('hidden');
         }
 
@@ -442,9 +452,10 @@
             let s1 = 0, s2 = 0;
             session.games.forEach(g => g.winner === 1 ? s1++ : s2++);
 
-            const totalMin = Math.floor(session.totalDuration / 60);
-            const totalSec = session.totalDuration % 60;
-            const avgSec = session.games.length ? Math.floor(session.totalDuration / session.games.length) : 0;
+            const duration = session.totalDuration ?? Math.floor((Date.now() - session.startTime) / 1000);
+            const totalMin = Math.floor(duration / 60);
+            const totalSec = duration % 60;
+            const avgSec = session.games.length ? Math.floor(duration / session.games.length) : 0;
             const avgMin = Math.floor(avgSec / 60);
             const avgS = avgSec % 60;
 
@@ -519,19 +530,35 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
             showHistory(); // Refresh list
         }
 
-        function closeSummary() {
-            document.getElementById('summary-modal').classList.add('hidden');
-            currentSession = null;
-            document.getElementById('current-session').classList.add('hidden');
-            document.getElementById('welcome-screen').classList.remove('hidden');
-            document.getElementById('setup-player1-name').value = 'Drey';
-            document.getElementById('setup-player2-name').value = 'Etienne';
+        function hideSummary() {
+            const modal = document.getElementById('summary-modal');
+            modal.classList.add('hidden');
+            if (modal.dataset.closed === 'true') {
+                currentSession = null;
+                document.getElementById('current-session').classList.add('hidden');
+                document.getElementById('welcome-screen').classList.remove('hidden');
+                document.getElementById('setup-player1-name').value = 'Drey';
+                document.getElementById('setup-player2-name').value = 'Etienne';
+            }
             showTab('session');
         }
 
-        function startNewAfterSummary() {
-            document.getElementById('summary-modal').classList.add('hidden');
-            newSession();
+        function confirmCloseSession() {
+            if (!currentSession || currentSession.completed) return;
+            currentSession.endTime = Date.now();
+            currentSession.totalDuration = Math.floor((currentSession.endTime - currentSession.startTime) / 1000);
+            currentSession.completed = true;
+            saveData();
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            // Update buttons after ending session
+            document.getElementById('resume-summary-btn').classList.add('hidden');
+            document.getElementById('end-session-btn').classList.add('hidden');
+            document.getElementById('share-summary-btn').classList.remove('hidden');
+            document.getElementById('close-summary-btn').classList.remove('hidden');
+            document.getElementById('summary-modal').dataset.closed = 'true';
         }
 
         function saveCurrentSession() {
