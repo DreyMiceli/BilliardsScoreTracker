@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billiards Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        .game-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .breaker-active {
+            background-color: rgb(63 63 70) !important;
+            border: 2px solid rgb(134 239 172);
+            color: white;
+        }
+        .timer-display {
+            font-family: monospace;
+            font-size: 0.875rem;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+    <div class="max-w-lg mx-auto p-3">
+
+        <!-- Header -->
+        <div class="mb-3">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-billiards text-emerald-500"></i>
+                Billiards
+            </h1>
+        </div>
+
+        <div class="bg-zinc-900/70 rounded-3xl p-2 mb-3 grid grid-cols-2 gap-2">
+            <button id="session-tab-btn" onclick="showTab('session')" class="py-3 rounded-2xl bg-emerald-600 text-sm font-medium transition-all">
+                Session
+            </button>
+            <button id="history-tab-btn" onclick="showTab('history')" class="py-3 rounded-2xl bg-zinc-800 text-sm font-medium transition-all">
+                History
+            </button>
+        </div>
+
+        <div id="session-tab">
+
+            <!-- Welcome Screen -->
+            <div id="welcome-screen" class="bg-zinc-900 rounded-3xl p-6 text-center hidden">
+                <i class="fas fa-billiards text-6xl text-emerald-500/20 mb-4"></i>
+                <h2 class="text-xl font-bold mb-4">Ready to play?</h2>
+                <div class="flex items-center justify-center gap-2 mb-6">
+                    <input id="setup-player1-name" class="bg-zinc-800 text-base font-semibold text-center w-28 px-3 py-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Player 1" value="Drey">
+                    <span class="text-zinc-500 text-sm">vs</span>
+                    <input id="setup-player2-name" class="bg-zinc-800 text-base font-semibold text-center w-28 px-3 py-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Player 2" value="Etienne">
+                </div>
+                <button onclick="newSession()" 
+                        class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-base font-semibold rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-95">
+                    <i class="fas fa-plus"></i> Start New Session
+                </button>
+            </div>
+
+            <!-- Current Session -->
+            <div id="current-session" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
+                <div class="flex items-center justify-center gap-3 mb-5">
+                    <div class="flex-1 bg-zinc-800 rounded-2xl p-4 text-center">
+                        <div id="player1-score" class="text-5xl font-bold text-emerald-400">0</div>
+                        <div id="player1-name-score" class="text-zinc-400 text-xs mt-1"></div>
+                    </div>
+                    <span class="text-zinc-500 text-lg font-bold">vs</span>
+                    <div class="flex-1 bg-zinc-800 rounded-2xl p-4 text-center">
+                        <div id="player2-score" class="text-5xl font-bold text-amber-400">0</div>
+                        <div id="player2-name-score" class="text-zinc-400 text-xs mt-1"></div>
+                    </div>
+                </div>
+
+                <div id="game-results" class="mb-5 flex gap-1.5 flex-wrap bg-zinc-800/50 rounded-xl p-2 min-h-10 items-center"></div>
+
+                <div class="bg-zinc-800/70 rounded-2xl p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-semibold flex items-center gap-1"><i class="fas fa-gamepad text-sm"></i> Current Game</h3>
+                            <div class="text-base font-mono font-bold text-emerald-400" id="game-counter">Game 1</div>
+                        </div>
+                        <div id="live-timer" class="timer-display text-emerald-400 text-sm"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="text-zinc-400 text-xs mb-2">Who breaks?</p>
+                        <div class="flex gap-2">
+                            <button onclick="setBreaker(1)" id="breaker-btn-1" class="flex-1 py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 transition-all text-sm font-medium">
+                                <span id="breaker-name-1"></span><i class="fas fa-arrow-right ml-1 text-xs"></i>
+                            </button>
+                            <button onclick="setBreaker(2)" id="breaker-btn-2" class="flex-1 py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 transition-all text-sm font-medium">
+                                <i class="fas fa-arrow-left mr-1 text-xs"></i><span id="breaker-name-2"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-zinc-400 text-xs mb-2">Who won?</p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="declareWinner(1)" class="py-4 rounded-2xl text-lg font-bold bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all flex flex-col items-center gap-1">
+                                <i class="fas fa-trophy text-sm"></i><span id="win-name-1" class="text-xs"></span>
+                            </button>
+                            <button onclick="declareWinner(2)" class="py-4 rounded-2xl text-lg font-bold bg-amber-600 hover:bg-amber-500 active:scale-95 transition-all flex flex-col items-center gap-1">
+                                <i class="fas fa-trophy text-sm"></i><span id="win-name-2" class="text-xs"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="endSession()" 
+                            class="w-full mt-4 py-2 text-red-400 hover:text-red-500 text-xs font-medium flex items-center justify-center gap-2 bg-red-950 hover:bg-red-900 rounded-xl transition-colors">
+                        <i class="fas fa-stop text-xs"></i> END SESSION
+                    </button>
+                </div>
+
+                <div class="mt-4">
+                    <h3 class="text-sm font-medium mb-2 flex items-center gap-2"><i class="fas fa-list text-xs"></i> Games Played</h3>
+                    <div id="games-list" class="space-y-2 max-h-[180px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="history-tab" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-lg font-bold">Session History</h2>
+                    <p class="text-zinc-500 text-xs">Review completed past sessions.</p>
+                </div>
+                <button onclick="showTab('session')" class="text-zinc-400 bg-zinc-800 px-2 py-1 rounded-lg hover:bg-zinc-700 text-sm">Back</button>
+            </div>
+            <div id="history-list" class="space-y-2 max-h-[70vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summary-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div class="bg-zinc-900 rounded-3xl w-full max-w-md mx-4 p-5 relative">
+            <button onclick="hideSummary()" aria-label="Close summary" class="absolute top-4 right-4 text-zinc-500 hover:text-white text-lg">
+                <i class="fas fa-times"></i>
+            </button>
+            <h2 class="text-2xl font-bold text-center mb-5">Session Summary</h2>
+            <div id="summary-content" class="space-y-5"></div>
+            <div class="flex gap-2 mt-6">
+                <button id="resume-summary-btn" onclick="hideSummary()" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Resume</button>
+                <button id="end-session-btn" onclick="confirmCloseSession()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-xl font-medium text-sm">End Session</button>
+                <button id="share-summary-btn" onclick="shareSession()" class="hidden flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium flex items-center justify-center gap-1 text-sm">
+                    <i class="fas fa-share-alt text-sm"></i> Share
+                </button>
+                <button id="close-summary-btn" onclick="hideSummary()" class="hidden flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+        let sessionsHistory = [];
+        let currentBreaker = 1;
+        let gameStartTime = null;
+        let timerInterval = null;
+
+        function loadData() {
+            const saved = localStorage.getItem('billiardsSessions');
+            if (saved) sessionsHistory = JSON.parse(saved);
+
+            const unfinished = sessionsHistory.find(s => !s.completed);
+            if (unfinished) {
+                currentSession = unfinished;
+                showCurrentSession();
+            } else {
+                document.getElementById('welcome-screen').classList.remove('hidden');
+            }
+        }
+
+        function saveData() {
+            if (!currentSession) return;
+            const index = sessionsHistory.findIndex(s => s.id === currentSession.id);
+            if (index >= 0) sessionsHistory[index] = currentSession;
+            else sessionsHistory.push(currentSession);
+            localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            gameStartTime = Date.now();
+            timerInterval = setInterval(updateLiveTimer, 1000);
+            updateLiveTimer();
+        }
+
+        function updateLiveTimer() {
+            if (!gameStartTime) return;
+            const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+            const m = Math.floor(elapsed / 60);
+            const s = elapsed % 60;
+            document.getElementById('live-timer').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function stopAndSaveDuration() {
+            if (!gameStartTime) return 0;
+            const duration = Math.floor((Date.now() - gameStartTime) / 1000);
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
+            return duration;
+        }
+
+        function newSession() {
+            const player1 = document.getElementById('setup-player1-name').value || 'Drey';
+            const player2 = document.getElementById('setup-player2-name').value || 'Etienne';
+            currentSession = {
+                id: 'sess_' + Date.now(),
+                date: new Date().toISOString().split('T')[0],
+                startTime: Date.now(),
+                player1: player1,
+                player2: player2,
+                games: [],
+                completed: false,
+                totalDuration: 0
+            };
+            sessionsHistory.push(currentSession);
+            saveData();
+            showCurrentSession();
+        }
+
+        function showCurrentSession() {
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('current-session').classList.remove('hidden');
+            showTab('session');
+            renderCurrentSession();
+        }
+
+        function renderCurrentSession() {
+            if (!currentSession) return;
+
+            document.getElementById('player1-name-score').textContent = currentSession.player1;
+            document.getElementById('player2-name-score').textContent = currentSession.player2;
+            document.getElementById('win-name-1').textContent = currentSession.player1;
+            document.getElementById('win-name-2').textContent = currentSession.player2;
+            document.getElementById('breaker-name-1').textContent = currentSession.player1;
+            document.getElementById('breaker-name-2').textContent = currentSession.player2;
+
+            let s1 = 0, s2 = 0;
+            currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+            document.getElementById('player1-score').textContent = s1;
+            document.getElementById('player2-score').textContent = s2;
+
+            // Populate game results boxes
+            const gameResultsContainer = document.getElementById('game-results');
+            gameResultsContainer.innerHTML = '';
+            if (currentSession.games.length === 0) {
+                gameResultsContainer.innerHTML = '<p class="text-zinc-500 text-xs">No games yet</p>';
+            } else {
+                currentSession.games.forEach(game => {
+                    const isPlayer1Winner = game.winner === 1;
+                    const winner = isPlayer1Winner ? currentSession.player1 : currentSession.player2;
+                    const initial = winner[0].toUpperCase();
+                    const bgColor = isPlayer1Winner ? 'bg-emerald-600' : 'bg-amber-600';
+                    
+                    const box = document.createElement('div');
+                    box.className = `w-10 h-10 rounded-lg ${bgColor} flex items-center justify-center text-sm font-bold text-white flex-shrink-0`;
+                    box.textContent = initial;
+                    gameResultsContainer.appendChild(box);
+                });
+            }
+
+            const next = currentSession.games.length + 1;
+            document.getElementById('game-counter').textContent = `Game ${next}`;
+
+            renderGamesList();
+            startTimer();
+
+            if (currentSession.games.length === 0) setBreakerUI(1);
+            else setBreakerUI(currentSession.games.at(-1).breaker === 1 ? 2 : 1);
+        }
+
+        function showTab(tab) {
+            const sessionTab = document.getElementById('session-tab');
+            const historyTab = document.getElementById('history-tab');
+            const sessionBtn = document.getElementById('session-tab-btn');
+            const historyBtn = document.getElementById('history-tab-btn');
+            const isSession = tab === 'session';
+
+            sessionTab.classList.toggle('hidden', !isSession);
+            historyTab.classList.toggle('hidden', isSession);
+            sessionBtn.classList.toggle('bg-emerald-600', isSession);
+            sessionBtn.classList.toggle('bg-zinc-800', !isSession);
+            historyBtn.classList.toggle('bg-emerald-600', !isSession);
+            historyBtn.classList.toggle('bg-zinc-800', isSession);
+
+            if (!isSession) {
+                populateHistory();
+            }
+        }
+
+        function populateHistory() {
+            const container = document.getElementById('history-list');
+            container.innerHTML = '';
+
+            const completed = sessionsHistory.filter(s => s.completed).reverse();
+
+            if (completed.length === 0) {
+                container.innerHTML = `<div class="text-center py-20 text-zinc-500">No completed sessions yet</div>`;
+                return;
+            }
+
+            completed.forEach(s => {
+                let s1 = 0, s2 = 0;
+                s.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+
+                const totalMin = Math.floor(s.totalDuration / 60);
+                const totalSec = s.totalDuration % 60;
+                const avgSec = s.games.length ? Math.floor(s.totalDuration / s.games.length) : 0;
+                const avgMin = Math.floor(avgSec / 60);
+                const avgS = avgSec % 60;
+
+                const sessionDate = new Date(s.startTime);
+                const dateStr = sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                const timeStr = sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                const div = document.createElement('div');
+                div.className = "bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-3 cursor-pointer transition-colors";
+                div.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <div class="text-xs text-zinc-400">${dateStr} • ${timeStr}</div>
+                            <div class="font-semibold text-sm mt-0.5">${s.player1} <span class="text-zinc-500 text-xs">vs</span> ${s.player2}</div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <div class="text-2xl font-bold text-white">${s1} - ${s2}</div>
+                            <div class="text-xs text-emerald-400">${s.games.length} games</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-3 px-1">
+                        <div class="text-center flex-1">
+                            <div class="text-emerald-400 font-medium text-xs">${totalMin}:${totalSec.toString().padStart(2,'0')}</div>
+                            <div class="text-[9px] text-zinc-500">SESSION</div>
+                        </div>
+                        <div class="text-center flex-1">
+                            <div class="text-emerald-400 font-medium text-xs">${avgMin}:${avgS.toString().padStart(2,'0')}</div>
+                            <div class="text-[9px] text-zinc-500">AVG/GAME</div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button onclick="event.stopImmediatePropagation(); shareSessionData(${JSON.stringify(s).replace(/"/g, '&quot;')});" 
+                                    class="text-blue-400 hover:text-blue-300">
+                                <i class="fas fa-share-alt text-lg"></i>
+                            </button>
+                            <button onclick="event.stopImmediatePropagation(); deleteSession('${s.id}');" 
+                                    class="text-red-400 hover:text-red-500">
+                                <i class="fas fa-trash text-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderGamesList() {
+            const container = document.getElementById('games-list');
+            container.innerHTML = currentSession.games.length === 0 
+                ? `<div class="text-center py-6 text-zinc-500 text-xs">No games played yet</div>` : '';
+
+            currentSession.games.forEach((game, i) => {
+                const mins = Math.floor(game.duration / 60);
+                const secs = game.duration % 60;
+                const div = document.createElement('div');
+                div.className = `game-card bg-zinc-800 rounded-xl p-3 flex items-center justify-between text-sm`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 bg-zinc-700 rounded-lg flex items-center justify-center font-mono text-xs">${i+1}</div>
+                        <div>
+                            <div class="text-xs text-zinc-400">${game.breaker === 1 ? currentSession.player1 : currentSession.player2} broke</div>
+                            <div class="font-medium text-xs">${game.winner === 1 ? currentSession.player1 : currentSession.player2} won</div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-emerald-400 text-xs">${mins}:${secs.toString().padStart(2, '0')}</div>
+                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function setBreakerUI(player) {
+            currentBreaker = player;
+            document.getElementById('breaker-btn-1').classList.toggle('breaker-active', player === 1);
+            document.getElementById('breaker-btn-2').classList.toggle('breaker-active', player === 2);
+        }
+
+        function setBreaker(player) { setBreakerUI(player); }
+
+        function declareWinner(winner) {
+            if (!currentBreaker) return alert("Please select who breaks!");
+            const duration = stopAndSaveDuration();
+            currentSession.games.push({ gameNum: currentSession.games.length + 1, breaker: currentBreaker, winner, duration });
+            saveData();
+            renderCurrentSession();
+        }
+
+        function endSession() {
+            if (!currentSession || currentSession.games.length === 0) {
+                if (confirm("Delete empty session?")) {
+                    sessionsHistory = sessionsHistory.filter(s => s.id !== currentSession?.id);
+                    localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+                    currentSession = null;
+                    if (timerInterval) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                    }
+                    document.getElementById('welcome-screen').classList.remove('hidden');
+                    document.getElementById('current-session').classList.add('hidden');
+                    document.getElementById('setup-player1-name').value = 'Drey';
+                    document.getElementById('setup-player2-name').value = 'Etienne';
+                }
+                return;
+            }
+            showSummary();
+        }
+
+        function showSummary() {
+            const modal = document.getElementById('summary-modal');
+            const content = document.getElementById('summary-content');
+            let s1 = 0, s2 = 0;
+            currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+            const totalGames = currentSession.games.length;
+            const totalDuration = currentSession.totalDuration || Math.floor((Date.now() - currentSession.startTime) / 1000);
+            const avg = totalGames ? Math.floor(totalDuration / totalGames) : 0;
+
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="text-5xl font-bold mb-2">${s1} - ${s2}</div>
+                    <div class="text-lg">${currentSession.player1} vs ${currentSession.player2}</div>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-4 text-center">
+                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold text-emerald-400">${s1}</div><div class="text-xs text-zinc-400">WINS</div></div>
+                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold text-amber-400">${s2}</div><div class="text-xs text-zinc-400">WINS</div></div>
+                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold">${totalGames}</div><div class="text-xs text-zinc-400">GAMES</div></div>
+                </div>
+                <div class="mt-4 bg-zinc-800 rounded-xl p-4 grid grid-cols-2 gap-4 text-center">
+                    <div><div class="text-lg font-medium">${Math.floor(totalDuration/60)}:${(totalDuration%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">TOTAL</div></div>
+                    <div><div class="text-lg font-medium">${Math.floor(avg/60)}:${(avg%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">AVG/GAME</div></div>
+                </div>
+            `;
+            document.getElementById('resume-summary-btn').classList.remove('hidden');
+            document.getElementById('end-session-btn').classList.remove('hidden');
+            document.getElementById('share-summary-btn').classList.add('hidden');
+            document.getElementById('close-summary-btn').classList.add('hidden');
+            modal.dataset.closed = 'false';
+            modal.classList.remove('hidden');
+        }
+
+        function generateShareText(session) {
+            let s1 = 0, s2 = 0;
+            session.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+
+            const duration = session.totalDuration ?? Math.floor((Date.now() - session.startTime) / 1000);
+            const totalMin = Math.floor(duration / 60);
+            const totalSec = duration % 60;
+            const avgSec = session.games.length ? Math.floor(duration / session.games.length) : 0;
+            const avgMin = Math.floor(avgSec / 60);
+            const avgS = avgSec % 60;
+
+            const p1Initial = session.player1[0].toUpperCase();
+            const p2Initial = session.player2[0].toUpperCase();
+
+            let breakerLine = '';
+            let winnerLine = '';
+            session.games.forEach((game, index) => {
+                breakerLine += (game.breaker === 1 ? p1Initial : p2Initial);
+                winnerLine += (game.winner === 1 ? p1Initial : p2Initial);
+                if (index < session.games.length - 1) {
+                    breakerLine += '-';
+                    winnerLine += '-';
+                }
+            });
+
+            return `Billiards Session Tracker
+
+${session.player1} vs ${session.player2}
+
+Final Score: ${s1} - ${s2}   (${session.games.length} games)
+
+Breakers: ${breakerLine}
+Winners:  ${winnerLine}
+
+Session Duration: ${totalMin}:${totalSec.toString().padStart(2, '0')}
+Avg per Game: ${avgMin}:${avgS.toString().padStart(2, '0')}
+
+Played on ${new Date(session.startTime).toLocaleDateString()}`;
+        }
+
+        function shareSessionData(session) {
+            const text = generateShareText(session);
+            if (navigator.share) {
+                navigator.share({
+                    title: `${session.player1} vs ${session.player2} - Billiards`,
+                    text: text,
+                }).catch(() => copyToClipboard(text));
+            } else {
+                copyToClipboard(text);
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("✅ Summary copied to clipboard!");
+            }).catch(() => {
+                alert("Summary:\n\n" + text);
+            });
+        }
+
+        function shareSession() {
+            if (currentSession) shareSessionData(currentSession);
+        }
+
+        function deleteSession(id) {
+            if (!confirm("Delete this session permanently?")) return;
+            
+            sessionsHistory = sessionsHistory.filter(s => s.id !== id);
+            localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+            
+            // If deleting the current unfinished session
+            if (currentSession && currentSession.id === id) {
+                currentSession = null;
+                document.getElementById('current-session').classList.add('hidden');
+                document.getElementById('welcome-screen').classList.remove('hidden');
+                document.getElementById('setup-player1-name').value = 'Drey';
+                document.getElementById('setup-player2-name').value = 'Etienne';
+            }
+            
+            showHistory(); // Refresh list
+        }
+
+        function hideSummary() {
+            const modal = document.getElementById('summary-modal');
+            modal.classList.add('hidden');
+            if (modal.dataset.closed === 'true') {
+                currentSession = null;
+                document.getElementById('current-session').classList.add('hidden');
+                document.getElementById('welcome-screen').classList.remove('hidden');
+                document.getElementById('setup-player1-name').value = 'Drey';
+                document.getElementById('setup-player2-name').value = 'Etienne';
+            }
+            showTab('session');
+        }
+
+        function confirmCloseSession() {
+            if (!currentSession || currentSession.completed) return;
+            currentSession.endTime = Date.now();
+            currentSession.totalDuration = Math.floor((currentSession.endTime - currentSession.startTime) / 1000);
+            currentSession.completed = true;
+            saveData();
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            // Update buttons after ending session
+            document.getElementById('resume-summary-btn').classList.add('hidden');
+            document.getElementById('end-session-btn').classList.add('hidden');
+            document.getElementById('share-summary-btn').classList.remove('hidden');
+            document.getElementById('close-summary-btn').classList.remove('hidden');
+            document.getElementById('summary-modal').dataset.closed = 'true';
+        }
+
+        function saveCurrentSession() {
+            if (!currentSession) return;
+            saveData();
+        }
+
+        function showHistory() {
+            populateHistory();
+            showTab('history');
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>

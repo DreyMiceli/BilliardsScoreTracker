@@ -25,20 +25,20 @@
     <div class="max-w-lg mx-auto p-3">
 
         <!-- Header -->
-        <div class="mb-3">
-            <h1 class="text-2xl font-bold flex items-center gap-2">
+        <div class="mb-3 flex items-center justify-between gap-3">
+            <h1 class="text-2xl font-bold flex items-center gap-2 flex-shrink-0">
                 <i class="fas fa-billiards text-emerald-500"></i>
                 Billiards
             </h1>
-        </div>
 
-        <div class="bg-zinc-900/70 rounded-3xl p-2 mb-3 grid grid-cols-2 gap-2">
-            <button id="session-tab-btn" onclick="showTab('session')" class="py-3 rounded-2xl bg-emerald-600 text-sm font-medium transition-all">
-                Session
-            </button>
-            <button id="history-tab-btn" onclick="showTab('history')" class="py-3 rounded-2xl bg-zinc-800 text-sm font-medium transition-all">
-                History
-            </button>
+            <div class="bg-zinc-900/70 rounded-3xl p-1 flex gap-1 flex-shrink-0 text-sm">
+                <button id="session-tab-btn" onclick="showTab('session')" class="px-4 py-1.5 rounded-3xl bg-emerald-600 font-medium transition-all">
+                    Session
+                </button>
+                <button id="history-tab-btn" onclick="showTab('history')" class="px-4 py-1.5 rounded-3xl bg-zinc-800 font-medium transition-all">
+                    History
+                </button>
+            </div>
         </div>
 
         <div id="session-tab">
@@ -46,65 +46,45 @@
             <!-- Welcome Screen -->
             <div id="welcome-screen" class="bg-zinc-900 rounded-3xl p-6 text-center hidden">
                 <i class="fas fa-billiards text-6xl text-emerald-500/20 mb-4"></i>
-                <h2 class="text-xl font-bold mb-4">Ready to play?</h2>
-                <div class="flex items-center justify-center gap-2 mb-6">
-                    <input id="setup-player1-name" class="bg-zinc-800 text-base font-semibold text-center w-28 px-3 py-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Player 1" value="Drey">
-                    <span class="text-zinc-500 text-sm">vs</span>
-                    <input id="setup-player2-name" class="bg-zinc-800 text-base font-semibold text-center w-28 px-3 py-1 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="Player 2" value="Etienne">
-                </div>
-                <button onclick="newSession()" 
+                <h2 class="text-xl font-bold mb-4">Ready to play a tournament?</h2>
+                <p class="text-zinc-400 text-sm mb-6">Add 2+ players for round-robin</p>
+                <div id="player-setup-list" class="space-y-3 mb-6"></div>
+                <button onclick="addPlayerToSetup()" 
+                        class="w-full py-3 border border-dashed border-zinc-400 hover:border-emerald-400 text-zinc-400 hover:text-emerald-400 rounded-3xl flex items-center justify-center gap-2 text-sm mb-6 transition-all">
+                    <i class="fas fa-user-plus"></i> Add Player
+                </button>
+                <button onclick="startNewSession()" 
                         class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-base font-semibold rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                    <i class="fas fa-plus"></i> Start New Session
+                    <i class="fas fa-play"></i> Start Round-Robin Tournament
                 </button>
             </div>
 
             <!-- Current Session -->
             <div id="current-session" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
-                <div class="flex items-center justify-center gap-3 mb-5">
-                    <div class="flex-1 bg-zinc-800 rounded-2xl p-4 text-center">
-                        <div id="player1-score" class="text-5xl font-bold text-emerald-400">0</div>
-                        <div id="player1-name-score" class="text-zinc-400 text-xs mt-1"></div>
-                    </div>
-                    <span class="text-zinc-500 text-lg font-bold">vs</span>
-                    <div class="flex-1 bg-zinc-800 rounded-2xl p-4 text-center">
-                        <div id="player2-score" class="text-5xl font-bold text-amber-400">0</div>
-                        <div id="player2-name-score" class="text-zinc-400 text-xs mt-1"></div>
-                    </div>
-                </div>
-
-                <div id="game-results" class="mb-5 flex gap-1.5 flex-wrap bg-zinc-800/50 rounded-xl p-2 min-h-10 items-center"></div>
-
-                <div class="bg-zinc-800/70 rounded-2xl p-4">
+                <!-- Current Match controls (moved to top) -->
+                <div class="bg-zinc-800/70 rounded-2xl p-4 mb-6">
                     <div class="flex justify-between items-center mb-4">
                         <div class="flex items-center gap-2">
-                            <h3 class="text-base font-semibold flex items-center gap-1"><i class="fas fa-gamepad text-sm"></i> Current Game</h3>
-                            <div class="text-base font-mono font-bold text-emerald-400" id="game-counter">Game 1</div>
+                            <h3 class="text-base font-semibold flex items-center gap-1"><i class="fas fa-gamepad text-sm"></i> Current Match</h3>
+                            <div class="text-sm font-mono font-bold text-emerald-400" id="match-counter">Game 1 - Set 1 - Set Game 1 of 3</div>
                         </div>
                         <div id="live-timer" class="timer-display text-emerald-400 text-sm"></div>
                     </div>
 
+                    <div id="current-match-players" class="bg-zinc-950 rounded-2xl p-4 mb-6 text-center border border-zinc-700">
+                        <!-- Populated by JS -->
+                    </div>
+
                     <div class="mb-4">
-                        <p class="text-zinc-400 text-xs mb-2">Who breaks?</p>
-                        <div class="flex gap-2">
-                            <button onclick="setBreaker(1)" id="breaker-btn-1" class="flex-1 py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 transition-all text-sm font-medium">
-                                <span id="breaker-name-1"></span><i class="fas fa-arrow-right ml-1 text-xs"></i>
-                            </button>
-                            <button onclick="setBreaker(2)" id="breaker-btn-2" class="flex-1 py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 transition-all text-sm font-medium">
-                                <i class="fas fa-arrow-left mr-1 text-xs"></i><span id="breaker-name-2"></span>
-                            </button>
+                        <p class="text-zinc-400 text-xs mb-2">BREAKER (dictated by tournament)</p>
+                        <div id="breaker-display" class="py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-emerald-400 border border-emerald-500/30">
+                            <!-- Populated by JS -->
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-zinc-400 text-xs mb-2">Who won?</p>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button onclick="declareWinner(1)" class="py-4 rounded-2xl text-lg font-bold bg-emerald-600 hover:bg-emerald-500 active:scale-95 transition-all flex flex-col items-center gap-1">
-                                <i class="fas fa-trophy text-sm"></i><span id="win-name-1" class="text-xs"></span>
-                            </button>
-                            <button onclick="declareWinner(2)" class="py-4 rounded-2xl text-lg font-bold bg-amber-600 hover:bg-amber-500 active:scale-95 transition-all flex flex-col items-center gap-1">
-                                <i class="fas fa-trophy text-sm"></i><span id="win-name-2" class="text-xs"></span>
-                            </button>
-                        </div>
+                        <p class="text-zinc-400 text-xs mb-2">Who won this match?</p>
+                        <div id="winner-buttons" class="grid grid-cols-2 gap-3"></div>
                     </div>
                     <button onclick="endSession()" 
                             class="w-full mt-4 py-2 text-red-400 hover:text-red-500 text-xs font-medium flex items-center justify-center gap-2 bg-red-950 hover:bg-red-900 rounded-xl transition-colors">
@@ -112,9 +92,19 @@
                     </button>
                 </div>
 
+                <!-- Dynamic Player Scores -->
+                <div id="player-scores" class="mb-6 flex flex-wrap justify-center gap-4"></div>
+
+                <div id="game-results" class="mb-5 flex gap-1.5 flex-wrap bg-zinc-800/50 rounded-xl p-2 min-h-10 items-center"></div>
+
                 <div class="mt-4">
-                    <h3 class="text-sm font-medium mb-2 flex items-center gap-2"><i class="fas fa-list text-xs"></i> Games Played</h3>
-                    <div id="games-list" class="space-y-2 max-h-[180px] overflow-y-auto pr-1"></div>
+                    <div onclick="toggleGamesList()" class="flex items-center justify-between cursor-pointer mb-2">
+                        <h3 class="text-sm font-medium flex items-center gap-2">
+                            <i class="fas fa-list text-xs"></i> Games Played
+                        </h3>
+                        <i id="games-list-chevron" class="fas fa-chevron-down text-zinc-400 transition-transform"></i>
+                    </div>
+                    <div id="games-list" class="space-y-2 max-h-[180px] overflow-y-auto pr-1 hidden"></div>
                 </div>
             </div>
         </div>
@@ -156,6 +146,8 @@
         let currentBreaker = 1;
         let gameStartTime = null;
         let timerInterval = null;
+        let setupPlayers = [];
+        const PLAYER_COLORS = ['emerald', 'amber', 'sky', 'violet', 'rose', 'lime', 'cyan', 'fuchsia'];
 
         function loadData() {
             const saved = localStorage.getItem('billiardsSessions');
@@ -167,6 +159,7 @@
                 showCurrentSession();
             } else {
                 document.getElementById('welcome-screen').classList.remove('hidden');
+                initializePlayerSetup();
             }
         }
 
@@ -201,15 +194,92 @@
             return duration;
         }
 
-        function newSession() {
-            const player1 = document.getElementById('setup-player1-name').value || 'Drey';
-            const player2 = document.getElementById('setup-player2-name').value || 'Etienne';
+        // Setup functions for multiple players
+        function initializePlayerSetup() {
+            setupPlayers = ['Drey', 'Etienne'];
+            renderPlayerSetup();
+        }
+
+        function renderPlayerSetup() {
+            const container = document.getElementById('player-setup-list');
+            container.innerHTML = '';
+            setupPlayers.forEach((name, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-3 bg-zinc-800 rounded-2xl p-1';
+                div.innerHTML = `
+                    <input 
+                        value="${name}" 
+                        class="flex-1 bg-transparent text-base font-semibold px-4 py-3 focus:outline-none text-center" 
+                        onchange="updatePlayerName(${index}, this.value)" 
+                        placeholder="Player name">
+                    ${setupPlayers.length > 2 ? `
+                    <button onclick="removePlayerFromSetup(${index}); event.stopImmediatePropagation()" 
+                            class="px-3 text-red-400 hover:text-red-500">
+                        <i class="fas fa-times"></i>
+                    </button>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updatePlayerName(index, value) {
+            setupPlayers[index] = (value || `Player ${index + 1}`).trim();
+        }
+
+        function addPlayerToSetup() {
+            if (setupPlayers.length >= 8) {
+                alert("Maximum 8 players supported");
+                return;
+            }
+            setupPlayers.push(`Player ${setupPlayers.length + 1}`);
+            renderPlayerSetup();
+        }
+
+        function removePlayerFromSetup(index) {
+            if (setupPlayers.length <= 2) return;
+            setupPlayers.splice(index, 1);
+            renderPlayerSetup();
+        }
+
+        function generateMatches(players) {
+            const matches = [];
+            for (let i = 0; i < players.length; i++) {
+                for (let j = i + 1; j < players.length; j++) {
+                    // Dictate breaker fairly using index parity
+                    const breaker = (i + j) % 2 === 0 ? players[i] : players[j];
+                    matches.push({
+                        matchNum: matches.length + 1,
+                        player1: players[i],
+                        player2: players[j],
+                        breaker: breaker,
+                        winner: null,
+                        duration: 0,
+                        completed: false
+                    });
+                }
+            }
+            return matches;
+        }
+
+        function startNewSession() {
+            const validPlayers = setupPlayers.filter(p => p && p.trim() !== '').map(p => p.trim());
+            if (validPlayers.length < 2) {
+                alert("At least 2 players required!");
+                return;
+            }
+            const uniquePlayers = [...new Set(validPlayers)];
+
+            // Randomize player order before generating the round-robin sequence
+            const shuffledPlayers = [...uniquePlayers].sort(() => Math.random() - 0.5);
+
             currentSession = {
                 id: 'sess_' + Date.now(),
                 date: new Date().toISOString().split('T')[0],
                 startTime: Date.now(),
-                player1: player1,
-                player2: player2,
+                players: shuffledPlayers,
+                schedule: generateMatches(shuffledPlayers), // randomized repeating sequence
+                playedGames: [],
+                currentMatchIndex: 0,
                 games: [],
                 completed: false,
                 totalDuration: 0
@@ -226,48 +296,246 @@
             renderCurrentSession();
         }
 
+        function getPlayerColor(playerName) {
+            if (!currentSession || !currentSession.players) return 'emerald';
+            const index = currentSession.players.indexOf(playerName);
+            return PLAYER_COLORS[index % PLAYER_COLORS.length];
+        }
+
+        function getPlayerWins(playerName) {
+            if (!currentSession) return 0;
+            const games = currentSession.playedGames || currentSession.matches || currentSession.games || [];
+            return games.filter(g => (g.winner === playerName || g.winnerName === playerName)).length;
+        }
+
+        function getEffectiveBreaker(matchTemplate) {
+            if (!matchTemplate || !currentSession) return matchTemplate?.breaker;
+            const played = currentSession.playedGames || [];
+            // Find prior meetings of this exact pair (order insensitive)
+            const prior = played.filter(g =>
+                (g.player1 === matchTemplate.player1 && g.player2 === matchTemplate.player2) ||
+                (g.player1 === matchTemplate.player2 && g.player2 === matchTemplate.player1)
+            );
+            const count = prior.length; // 0 = first time, use original; 1 = second time, flip, etc.
+            if (count % 2 === 0) {
+                return matchTemplate.breaker;
+            } else {
+                // Flip to the other player in the pair
+                return matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
+            }
+        }
+
         function renderCurrentSession() {
             if (!currentSession) return;
-
-            document.getElementById('player1-name-score').textContent = currentSession.player1;
-            document.getElementById('player2-name-score').textContent = currentSession.player2;
-            document.getElementById('win-name-1').textContent = currentSession.player1;
-            document.getElementById('win-name-2').textContent = currentSession.player2;
-            document.getElementById('breaker-name-1').textContent = currentSession.player1;
-            document.getElementById('breaker-name-2').textContent = currentSession.player2;
-
-            let s1 = 0, s2 = 0;
-            currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
-            document.getElementById('player1-score').textContent = s1;
-            document.getElementById('player2-score').textContent = s2;
-
-            // Populate game results boxes
-            const gameResultsContainer = document.getElementById('game-results');
-            gameResultsContainer.innerHTML = '';
-            if (currentSession.games.length === 0) {
-                gameResultsContainer.innerHTML = '<p class="text-zinc-500 text-xs">No games yet</p>';
-            } else {
-                currentSession.games.forEach(game => {
-                    const isPlayer1Winner = game.winner === 1;
-                    const winner = isPlayer1Winner ? currentSession.player1 : currentSession.player2;
-                    const initial = winner[0].toUpperCase();
-                    const bgColor = isPlayer1Winner ? 'bg-emerald-600' : 'bg-amber-600';
-                    
-                    const box = document.createElement('div');
-                    box.className = `w-10 h-10 rounded-lg ${bgColor} flex items-center justify-center text-sm font-bold text-white flex-shrink-0`;
-                    box.textContent = initial;
-                    gameResultsContainer.appendChild(box);
-                });
+            if (!currentSession.players || !currentSession.schedule) {
+                // Backward compat for old 2-player sessions
+                if (currentSession.player1 && currentSession.player2) {
+                    currentSession.players = [currentSession.player1, currentSession.player2];
+                    currentSession.schedule = currentSession.games.map(g => ({
+                        matchNum: g.gameNum || g.matchNum,
+                        player1: currentSession.player1,
+                        player2: currentSession.player2,
+                        breaker: g.breaker === 1 ? currentSession.player1 : currentSession.player2,
+                        winner: null,
+                        duration: 0,
+                        completed: false
+                    }));
+                    currentSession.playedGames = currentSession.games.map(g => ({...g, winner: g.winnerName || (g.winner === 1 ? currentSession.player1 : currentSession.player2)}));
+                    currentSession.currentMatchIndex = 0;
+                } else {
+                    return;
+                }
             }
 
-            const next = currentSession.games.length + 1;
-            document.getElementById('game-counter').textContent = `Game ${next}`;
-
+            renderPlayerScores();
+            renderGameResults();
+            renderCurrentMatch();
             renderGamesList();
             startTimer();
 
-            if (currentSession.games.length === 0) setBreakerUI(1);
-            else setBreakerUI(currentSession.games.at(-1).breaker === 1 ? 2 : 1);
+            const schedule = currentSession.schedule || [];
+            const currentIdx = currentSession.currentMatchIndex || 0;
+            const cycleLength = schedule.length || 1;
+            const positionInCycle = currentIdx % cycleLength;
+            const matchTemplate = schedule[positionInCycle] || {};
+
+            // Game = current overall game count
+            const totalGames = (currentSession.playedGames ? currentSession.playedGames.length : currentIdx) + 1;
+
+            // Set = which full round of all players vs each other is currently being played
+            const currentSet = Math.floor(currentIdx / cycleLength) + 1;
+
+            // Set Game = which specific matchup within the current Set
+            const setGame = positionInCycle + 1;
+
+            document.getElementById('match-counter').textContent =
+                `Game ${totalGames} - Set ${currentSet} (${setGame}/${cycleLength})`;
+        }
+
+        function renderPlayerScores() {
+            const container = document.getElementById('player-scores');
+            container.innerHTML = '';
+            currentSession.players.forEach(player => {
+                const wins = getPlayerWins(player);
+                const color = getPlayerColor(player);
+                const div = document.createElement('div');
+                div.className = `bg-zinc-800 rounded-2xl p-4 text-center flex-1 min-w-[110px] border border-transparent hover:border-${color}-400/50 transition-all`;
+                div.innerHTML = `
+                    <div class="text-5xl font-bold text-${color}-400 mb-1">${wins}</div>
+                    <div class="text-[10px] uppercase tracking-widest text-zinc-500">${player}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderGameResults() {
+            const container = document.getElementById('game-results');
+            container.innerHTML = '';
+            const completed = currentSession.playedGames || currentSession.matches?.filter(m => m.completed && m.winner) || currentSession.games || [];
+            if (completed.length === 0) {
+                container.innerHTML = '<p class="text-zinc-500 text-xs w-full text-center py-4">No matches played yet. Complete current match to see results.</p>';
+                return;
+            }
+            completed.forEach((match, idx) => {
+                const winnerName = match.winner || match.winnerName || (typeof match.winner === 'number' ? (match.winner === 1 ? (currentSession.players?.[0] || currentSession.player1) : (currentSession.players?.[1] || currentSession.player2)) : '');
+                const color = getPlayerColor ? getPlayerColor(winnerName) : 'emerald';
+                const initial = winnerName ? winnerName.substring(0, 1).toUpperCase() : '?';
+                const box = document.createElement('div');
+                box.className = `w-9 h-9 rounded-2xl bg-${color}-600 flex items-center justify-center text-xs font-bold text-white shadow-md flex-shrink-0 cursor-pointer active:scale-95 transition-transform`;
+                box.textContent = initial;
+                box.title = `Click to edit: ${winnerName} won match ${match.matchNum || idx+1}`;
+                box.onclick = () => editMatchResult(idx);
+                container.appendChild(box);
+            });
+        }
+
+        function editMatchResult(index) {
+            if (!currentSession || !currentSession.playedGames) return;
+            const match = currentSession.playedGames[index];
+            if (!match) return;
+
+            const p1 = match.player1;
+            const p2 = match.player2;
+            const container = document.getElementById('game-results');
+
+            // Store original HTML so we can restore it cleanly
+            container.dataset.originalHtml = container.innerHTML;
+
+            const color1 = getPlayerColor(p1);
+            const color2 = getPlayerColor(p2);
+            const isP1Winner = match.winner === p1;
+            const isP2Winner = match.winner === p2;
+
+            container.innerHTML = `
+                <div class="flex gap-2 w-full items-center justify-center py-2">
+                    <button onclick="changeMatchWinner(${index}, '${p1.replace(/'/g, "\\'")}')" 
+                            class="flex-1 py-3 rounded-2xl bg-${color1}-600 text-white font-semibold ${isP1Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
+                        ${p1} ${isP1Winner ? '✓' : ''}
+                    </button>
+                    <button onclick="changeMatchWinner(${index}, '${p2.replace(/'/g, "\\'")}')"
+                            class="flex-1 py-3 rounded-2xl bg-${color2}-600 text-white font-semibold ${isP2Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
+                        ${p2} ${isP2Winner ? '✓' : ''}
+                    </button>
+                    <button onclick="cancelEditMatchResult()" 
+                            class="px-4 py-3 text-xs text-zinc-400">Cancel</button>
+                </div>
+            `;
+        }
+
+        function changeMatchWinner(index, newWinner) {
+            const match = currentSession.playedGames[index];
+            if (!match) return;
+
+            match.winner = newWinner;
+
+            // Also update the corresponding games entry for compatibility
+            if (currentSession.games && currentSession.games[index]) {
+                currentSession.games[index].winner = newWinner;
+                currentSession.games[index].winnerName = newWinner;
+            }
+
+            const container = document.getElementById('game-results');
+            delete container.dataset.originalHtml;
+
+            saveData();
+            renderCurrentSession();
+        }
+
+        function cancelEditMatchResult() {
+            const container = document.getElementById('game-results');
+            if (container.dataset.originalHtml) {
+                container.innerHTML = container.dataset.originalHtml;
+                delete container.dataset.originalHtml;
+            } else {
+                renderCurrentSession();
+            }
+        }
+
+        function toggleGamesList() {
+            const list = document.getElementById('games-list');
+            const chevron = document.getElementById('games-list-chevron');
+
+            if (list.classList.contains('hidden')) {
+                list.classList.remove('hidden');
+                chevron.classList.add('rotate-180');
+            } else {
+                list.classList.add('hidden');
+                chevron.classList.remove('rotate-180');
+            }
+        }
+
+        function renderCurrentMatch() {
+            const schedule = currentSession.schedule || currentSession.matches || [];
+            const index = (currentSession.currentMatchIndex || 0) % (schedule.length || 1);
+            const matchTemplate = schedule[index];
+            if (!matchTemplate) return;
+
+            // Current match players display (from schedule template)
+            const p1Color = getPlayerColor(matchTemplate.player1);
+            const p2Color = getPlayerColor(matchTemplate.player2);
+            const matchDiv = document.getElementById('current-match-players');
+            matchDiv.innerHTML = `
+                <div class="flex items-center justify-center gap-6 text-xl">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-${p1Color}-400">${matchTemplate.player1}</div>
+                    </div>
+                    <div class="text-4xl font-black text-zinc-600">VS</div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-${p2Color}-400">${matchTemplate.player2}</div>
+                    </div>
+                </div>
+                <div class="text-[10px] text-zinc-500 mt-3">Game ${matchTemplate.matchNum} • Cycle ${Math.floor((currentSession.currentMatchIndex || 0) / schedule.length) + 1}</div>
+            `;
+
+            // Breaker (dictated from template, alternates on rematches)
+            const effectiveBreaker = getEffectiveBreaker(matchTemplate);
+            const breakerColor = getPlayerColor(effectiveBreaker);
+            const breakerDiv = document.getElementById('breaker-display');
+            breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-${breakerColor}-400 border border-${breakerColor}-500/30`;
+            breakerDiv.innerHTML = `
+                <i class="fas fa-gavel"></i>
+                <span>${effectiveBreaker} breaks</span>
+            `;
+
+            renderWinnerButtons(matchTemplate);
+        }
+
+        function renderWinnerButtons(match) {
+            const container = document.getElementById('winner-buttons');
+            container.innerHTML = '';
+            const p1 = match.player1;
+            const p2 = match.player2;
+            [p1, p2].forEach(playerName => {
+                const color = getPlayerColor(playerName);
+                const btn = document.createElement('button');
+                btn.className = `group py-6 rounded-3xl font-bold text-lg flex flex-col items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 hover:border-${color}-400 transition-all active:scale-[0.98]`;
+                btn.innerHTML = `
+                    <i class="fas fa-trophy text-2xl text-${color}-400 group-active:scale-110 transition-transform"></i>
+                    <span class="text-${color}-100">${playerName}</span>
+                `;
+                btn.onclick = () => declareMatchWinner(playerName);
+                container.appendChild(btn);
+            });
         }
 
         function showTab(tab) {
@@ -296,108 +564,143 @@
             const completed = sessionsHistory.filter(s => s.completed).reverse();
 
             if (completed.length === 0) {
-                container.innerHTML = `<div class="text-center py-20 text-zinc-500">No completed sessions yet</div>`;
+                container.innerHTML = `<div class="text-center py-20 text-zinc-500">No completed sessions yet.<br><br>Complete a round-robin tournament to see history here.</div>`;
                 return;
             }
 
             completed.forEach(s => {
-                let s1 = 0, s2 = 0;
-                s.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+                const players = s.players || [s.player1, s.player2].filter(Boolean);
+                let winSummary = '';
+                let maxWins = 0;
+                if (s.matches) {
+                    players.forEach(p => {
+                        const w = s.matches.filter(m => m.winner === p).length;
+                        winSummary += `${p.substring(0,1)}:${w} `;
+                        if (w > maxWins) maxWins = w;
+                    });
+                } else if (s.games) {
+                    let s1 = 0;
+                    s.games.forEach(g => { if (g.winner === 1 || g.winnerName === players[0]) s1++; });
+                    winSummary = `${players[0].substring(0,1)}:${s1} ${players[1] ? players[1].substring(0,1)+':' + (s.games.length - s1) : ''}`;
+                }
 
-                const totalMin = Math.floor(s.totalDuration / 60);
-                const totalSec = s.totalDuration % 60;
-                const avgSec = s.games.length ? Math.floor(s.totalDuration / s.games.length) : 0;
-                const avgMin = Math.floor(avgSec / 60);
-                const avgS = avgSec % 60;
+                const numMatches = s.matches ? s.matches.length : (s.games ? s.games.length : 0);
+                const totalMin = Math.floor((s.totalDuration || 0) / 60);
+                const totalSec = (s.totalDuration || 0) % 60;
+                const avg = numMatches ? Math.floor((s.totalDuration || 0) / numMatches) : 0;
+                const avgMin = Math.floor(avg / 60);
+                const avgS = avg % 60;
 
-                const sessionDate = new Date(s.startTime);
+                const sessionDate = new Date(s.startTime || Date.now());
                 const dateStr = sessionDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
                 const timeStr = sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 const div = document.createElement('div');
-                div.className = "bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-3 cursor-pointer transition-colors";
+                div.className = "bg-zinc-800 hover:bg-zinc-700 rounded-2xl p-4 cursor-pointer transition-colors";
                 div.innerHTML = `
-                    <div class="flex justify-between items-start gap-2">
+                    <div class="flex justify-between items-start">
                         <div>
                             <div class="text-xs text-zinc-400">${dateStr} • ${timeStr}</div>
-                            <div class="font-semibold text-sm mt-0.5">${s.player1} <span class="text-zinc-500 text-xs">vs</span> ${s.player2}</div>
+                            <div class="font-semibold text-sm mt-1">${players.join(' • ')}</div>
+                            <div class="text-emerald-400 text-xs mt-1">${winSummary}</div>
                         </div>
-                        <div class="text-right flex-shrink-0">
-                            <div class="text-2xl font-bold text-white">${s1} - ${s2}</div>
-                            <div class="text-xs text-emerald-400">${s.games.length} games</div>
+                        <div class="text-right">
+                            <div class="text-3xl font-bold text-white">${maxWins}</div>
+                            <div class="text-[10px] text-emerald-400 -mt-1">WINS</div>
                         </div>
                     </div>
-                    
-                    <div class="flex justify-between items-center mt-3 px-1">
-                        <div class="text-center flex-1">
-                            <div class="text-emerald-400 font-medium text-xs">${totalMin}:${totalSec.toString().padStart(2,'0')}</div>
-                            <div class="text-[9px] text-zinc-500">SESSION</div>
-                        </div>
-                        <div class="text-center flex-1">
-                            <div class="text-emerald-400 font-medium text-xs">${avgMin}:${avgS.toString().padStart(2,'0')}</div>
-                            <div class="text-[9px] text-zinc-500">AVG/GAME</div>
+                    <div class="flex justify-between text-[10px] mt-4 border-t border-zinc-700 pt-3">
+                        <div class="flex gap-4">
+                            <div><span class="text-emerald-400">${numMatches}</span> matches</div>
+                            <div><span class="text-emerald-400">${totalMin}:${totalSec.toString().padStart(2,'0')}</span></div>
                         </div>
                         <div class="flex gap-3">
-                            <button onclick="event.stopImmediatePropagation(); shareSessionData(${JSON.stringify(s).replace(/"/g, '&quot;')});" 
+                            <button onclick="event.stopImmediatePropagation(); shareSessionData(${JSON.stringify(s).replace(/"/g, '&quot;')}); event.stopImmediatePropagation();" 
                                     class="text-blue-400 hover:text-blue-300">
-                                <i class="fas fa-share-alt text-lg"></i>
+                                <i class="fas fa-share-alt"></i>
                             </button>
                             <button onclick="event.stopImmediatePropagation(); deleteSession('${s.id}');" 
                                     class="text-red-400 hover:text-red-500">
-                                <i class="fas fa-trash text-lg"></i>
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
                 `;
+                div.onclick = () => {
+                    // Optional: view full summary
+                    currentSession = s;
+                    showSummary();
+                };
                 container.appendChild(div);
             });
         }
 
         function renderGamesList() {
             const container = document.getElementById('games-list');
-            container.innerHTML = currentSession.games.length === 0 
-                ? `<div class="text-center py-6 text-zinc-500 text-xs">No games played yet</div>` : '';
-
-            currentSession.games.forEach((game, i) => {
-                const mins = Math.floor(game.duration / 60);
-                const secs = game.duration % 60;
+            container.innerHTML = '';
+            const allMatches = currentSession.playedGames || currentSession.matches || currentSession.games || [];
+            if (allMatches.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-zinc-500 text-xs">No matches played yet</div>`;
+                return;
+            }
+            allMatches.forEach((match, i) => {
+                if (!match.winner && !match.winnerName && !match.completed) return; // only completed
+                const mins = Math.floor((match.duration || 0) / 60);
+                const secs = (match.duration || 0) % 60;
+                const winnerName = match.winner || match.winnerName || (typeof match.winner === 'number' ? (match.winner === 1 ? (currentSession.players ? currentSession.players[0] : currentSession.player1) : (currentSession.players ? currentSession.players[1] : currentSession.player2)) : '');
+                const breakerName = match.breaker || (typeof match.breaker === 'number' ? (match.breaker === 1 ? (currentSession.players ? currentSession.players[0] : currentSession.player1) : (currentSession.players ? currentSession.players[1] : currentSession.player2)) : match.breaker);
                 const div = document.createElement('div');
                 div.className = `game-card bg-zinc-800 rounded-xl p-3 flex items-center justify-between text-sm`;
                 div.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 bg-zinc-700 rounded-lg flex items-center justify-center font-mono text-xs">${i+1}</div>
-                        <div>
-                            <div class="text-xs text-zinc-400">${game.breaker === 1 ? currentSession.player1 : currentSession.player2} broke</div>
-                            <div class="font-medium text-xs">${game.winner === 1 ? currentSession.player1 : currentSession.player2} won</div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 bg-zinc-700 rounded-lg flex items-center justify-center font-mono text-[10px]">${match.matchNum || i+1}</div>
+                        <div class="text-xs">
+                            <div class="text-zinc-400">${breakerName} broke</div>
+                            <div class="font-medium">${winnerName} won</div>
+                            <div class="text-[10px] text-zinc-500">${match.player1 || ''} vs ${match.player2 || ''}</div>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-emerald-400 text-xs">${mins}:${secs.toString().padStart(2, '0')}</div>
-                        <i class="fas fa-check-circle text-emerald-400 text-xs"></i>
+                    <div class="text-right text-emerald-400 text-xs font-mono">
+                        ${mins}:${secs.toString().padStart(2, '0')}
+                        <i class="fas fa-check-circle block text-emerald-400 text-xs mt-1"></i>
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        function setBreakerUI(player) {
-            currentBreaker = player;
-            document.getElementById('breaker-btn-1').classList.toggle('breaker-active', player === 1);
-            document.getElementById('breaker-btn-2').classList.toggle('breaker-active', player === 2);
-        }
-
-        function setBreaker(player) { setBreakerUI(player); }
-
-        function declareWinner(winner) {
-            if (!currentBreaker) return alert("Please select who breaks!");
+        function declareMatchWinner(winnerName) {
+            const schedule = currentSession.schedule || currentSession.matches || [];
+            const index = (currentSession.currentMatchIndex || 0) % (schedule.length || 1);
+            const matchTemplate = schedule[index];
+            if (!matchTemplate) return;
             const duration = stopAndSaveDuration();
-            currentSession.games.push({ gameNum: currentSession.games.length + 1, breaker: currentBreaker, winner, duration });
+            // Record completed instance with effective (alternating) breaker
+            const effectiveBreaker = getEffectiveBreaker(matchTemplate);
+            const result = {
+                matchNum: matchTemplate.matchNum,
+                player1: matchTemplate.player1,
+                player2: matchTemplate.player2,
+                breaker: effectiveBreaker,
+                winner: winnerName,
+                duration: duration,
+                round: Math.floor((currentSession.currentMatchIndex || 0) / schedule.length) + 1
+            };
+            currentSession.playedGames = currentSession.playedGames || [];
+            currentSession.playedGames.push(result);
+            currentSession.games = currentSession.games || [];
+            currentSession.games.push(result);
+            currentSession.currentMatchIndex = (currentSession.currentMatchIndex || 0) + 1;
+            // Accumulate total duration
+            currentSession.totalDuration = (currentSession.totalDuration || 0) + duration;
             saveData();
-            renderCurrentSession();
+            renderCurrentSession(); // Loops indefinitely until manual END SESSION
         }
 
         function endSession() {
-            if (!currentSession || currentSession.games.length === 0) {
+            if (!currentSession) return;
+            const hasMatches = (currentSession.matches && currentSession.matches.some(m => m.completed)) || (currentSession.games && currentSession.games.length > 0);
+            if (!hasMatches) {
                 if (confirm("Delete empty session?")) {
                     sessionsHistory = sessionsHistory.filter(s => s.id !== currentSession?.id);
                     localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
@@ -408,8 +711,7 @@
                     }
                     document.getElementById('welcome-screen').classList.remove('hidden');
                     document.getElementById('current-session').classList.add('hidden');
-                    document.getElementById('setup-player1-name').value = 'Drey';
-                    document.getElementById('setup-player2-name').value = 'Etienne';
+                    initializePlayerSetup();
                 }
                 return;
             }
@@ -419,80 +721,141 @@
         function showSummary() {
             const modal = document.getElementById('summary-modal');
             const content = document.getElementById('summary-content');
-            let s1 = 0, s2 = 0;
-            currentSession.games.forEach(g => g.winner === 1 ? s1++ : s2++);
-            const totalGames = currentSession.games.length;
+            const scheduleLen = (currentSession.schedule || currentSession.matches || []).length;
+            const played = currentSession.playedGames ? currentSession.playedGames.length : (currentSession.matches ? currentSession.matches.filter(m => m.completed).length : (currentSession.games ? currentSession.games.length : 0));
             const totalDuration = currentSession.totalDuration || Math.floor((Date.now() - currentSession.startTime) / 1000);
-            const avg = totalGames ? Math.floor(totalDuration / totalGames) : 0;
+            const avg = played ? Math.floor(totalDuration / played) : 0;
+            const fullRounds = scheduleLen > 0 ? Math.floor(played / scheduleLen) : 0;
+
+            let standingsHTML = '<div class="space-y-3">';
+            if (currentSession.players) {
+                currentSession.players.forEach((player, idx) => {
+                    const wins = getPlayerWins(player);
+                    const color = getPlayerColor(player);
+                    standingsHTML += `
+                        <div class="flex justify-between items-center bg-zinc-800 rounded-2xl px-4 py-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-${color}-500/20 flex items-center justify-center text-${color}-400 text-xs font-bold">${player[0].toUpperCase()}</div>
+                                <span class="font-medium">${player}</span>
+                            </div>
+                            <div class="text-3xl font-bold text-${color}-400">${wins}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                // old 2 player fallback
+                let s1 = 0, s2 = 0;
+                (currentSession.games || []).forEach(g => {
+                    if (g.winner === 1 || g.winnerName === currentSession.player1) s1++;
+                    else s2++;
+                });
+                standingsHTML += `
+                    <div class="text-5xl font-bold">${s1} - ${s2}</div>
+                    <div>${currentSession.player1 || ''} vs ${currentSession.player2 || ''}</div>
+                `;
+            }
+            standingsHTML += '</div>';
 
             content.innerHTML = `
-                <div class="text-center">
-                    <div class="text-5xl font-bold mb-2">${s1} - ${s2}</div>
-                    <div class="text-lg">${currentSession.player1} vs ${currentSession.player2}</div>
+                <div class="text-center mb-6">
+                    <div class="text-4xl font-bold text-emerald-400">Tournament Summary</div>
+                    <div class="text-zinc-400 mt-1">${currentSession.players ? currentSession.players.join(' • ') : ''} • ${fullRounds} full round(s) + ${played % scheduleLen} matches</div>
                 </div>
-                <div class="grid grid-cols-3 gap-2 mt-4 text-center">
-                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold text-emerald-400">${s1}</div><div class="text-xs text-zinc-400">WINS</div></div>
-                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold text-amber-400">${s2}</div><div class="text-xs text-zinc-400">WINS</div></div>
-                    <div class="bg-zinc-800 rounded-xl p-3"><div class="text-2xl font-bold">${totalGames}</div><div class="text-xs text-zinc-400">GAMES</div></div>
+                <div class="mb-6">
+                    ${standingsHTML}
                 </div>
-                <div class="mt-4 bg-zinc-800 rounded-xl p-4 grid grid-cols-2 gap-4 text-center">
-                    <div><div class="text-lg font-medium">${Math.floor(totalDuration/60)}:${(totalDuration%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">TOTAL</div></div>
-                    <div><div class="text-lg font-medium">${Math.floor(avg/60)}:${(avg%60).toString().padStart(2,'0')}</div><div class="text-xs text-zinc-400">AVG/GAME</div></div>
+                <div class="grid grid-cols-3 gap-3 text-center bg-zinc-800/70 rounded-2xl p-4">
+                    <div>
+                        <div class="text-3xl font-bold">${played}</div>
+                        <div class="text-xs text-zinc-400">MATCHES PLAYED</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold text-emerald-400">${Math.floor(totalDuration/60)}:${(totalDuration % 60).toString().padStart(2, '0')}</div>
+                        <div class="text-xs text-zinc-400">TOTAL TIME</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold">${Math.floor(avg/60)}:${(avg % 60).toString().padStart(2, '0')}</div>
+                        <div class="text-xs text-zinc-400">AVG/MATCH</div>
+                    </div>
                 </div>
+                ${currentSession.playedGames && currentSession.playedGames.length > 0 ? `
+                <div class="mt-6 text-xs text-zinc-400 bg-zinc-950 p-3 rounded-xl font-mono leading-relaxed max-h-40 overflow-y-auto">
+                    ${currentSession.playedGames.map((m, i) => {
+                        const p1Tags = `${m.breaker === m.player1 ? '(B)' : ''}${m.winner === m.player1 ? '(W)' : ''}`;
+                        const p2Tags = `${m.breaker === m.player2 ? '(B)' : ''}${m.winner === m.player2 ? '(W)' : ''}`;
+                        return `${m.matchNum} (r${m.round || 1}): ${m.player1} ${p1Tags} vs ${m.player2} ${p2Tags}`;
+                    }).join('<br>')}
+                </div>` : ''}
             `;
-            document.getElementById('resume-summary-btn').classList.remove('hidden');
-            document.getElementById('end-session-btn').classList.remove('hidden');
-            document.getElementById('share-summary-btn').classList.add('hidden');
-            document.getElementById('close-summary-btn').classList.add('hidden');
-            modal.dataset.closed = 'false';
+
+            const isCompleted = !!currentSession.completed;
+            if (isCompleted) {
+                document.getElementById('resume-summary-btn').classList.add('hidden');
+                document.getElementById('end-session-btn').classList.add('hidden');
+                document.getElementById('share-summary-btn').classList.remove('hidden');
+                document.getElementById('close-summary-btn').classList.remove('hidden');
+                modal.dataset.closed = 'true';
+            } else {
+                document.getElementById('resume-summary-btn').classList.remove('hidden');
+                document.getElementById('end-session-btn').classList.remove('hidden');
+                document.getElementById('share-summary-btn').classList.add('hidden');
+                document.getElementById('close-summary-btn').classList.add('hidden');
+                modal.dataset.closed = 'false';
+            }
             modal.classList.remove('hidden');
         }
 
         function generateShareText(session) {
-            let s1 = 0, s2 = 0;
-            session.games.forEach(g => g.winner === 1 ? s1++ : s2++);
+            const players = session.players || [session.player1 || 'P1', session.player2 || 'P2'].filter(Boolean);
+            const played = session.playedGames || session.games || [];
+            const scheduleLen = (session.schedule || session.matches || []).length || 1;
 
-            const duration = session.totalDuration ?? Math.floor((Date.now() - session.startTime) / 1000);
-            const totalMin = Math.floor(duration / 60);
-            const totalSec = duration % 60;
-            const avgSec = session.games.length ? Math.floor(duration / session.games.length) : 0;
-            const avgMin = Math.floor(avgSec / 60);
-            const avgS = avgSec % 60;
-
-            const p1Initial = session.player1[0].toUpperCase();
-            const p2Initial = session.player2[0].toUpperCase();
-
-            let breakerLine = '';
-            let winnerLine = '';
-            session.games.forEach((game, index) => {
-                breakerLine += (game.breaker === 1 ? p1Initial : p2Initial);
-                winnerLine += (game.winner === 1 ? p1Initial : p2Initial);
-                if (index < session.games.length - 1) {
-                    breakerLine += '-';
-                    winnerLine += '-';
-                }
+            // Correct win counts from playedGames (supports looping sessions)
+            let winsText = '';
+            players.forEach(p => {
+                const w = played.filter(g => (g.winner === p || g.winnerName === p)).length;
+                winsText += `${p}: ${w} wins\n`;
             });
 
-            return `Billiards Session Tracker
+            const numMatches = played.length;
+            const duration = session.totalDuration ?? Math.floor((Date.now() - (session.startTime || Date.now())) / 1000);
+            const totalMin = Math.floor(duration / 60);
+            const totalSec = duration % 60;
+            const avg = numMatches ? Math.floor(duration / numMatches) : 0;
+            const avgMin = Math.floor(avg / 60);
+            const avgS = avg % 60;
+            const fullRounds = scheduleLen > 0 ? Math.floor(numMatches / scheduleLen) : 0;
 
-${session.player1} vs ${session.player2}
+            let matchDetails = '';
+            played.forEach((m, index) => {
+                const p1Tags = `${m.breaker === m.player1 ? '(B)' : ''}${m.winner === m.player1 || m.winnerName === m.player1 ? '(W)' : ''}`;
+                const p2Tags = `${m.breaker === m.player2 ? '(B)' : ''}${m.winner === m.player2 || m.winnerName === m.player2 ? '(W)' : ''}`;
+                matchDetails += `${m.matchNum || (index+1)} (r${m.round || 1}): ${m.player1} ${p1Tags} vs ${m.player2} ${p2Tags}\n`;
+            });
 
-Final Score: ${s1} - ${s2}   (${session.games.length} games)
+            return `🎱 Billiards Round-Robin Tournament
 
-Breakers: ${breakerLine}
-Winners:  ${winnerLine}
+Players: ${players.join(' • ')}
+
+Standings:
+${winsText}
+Matches Played: ${numMatches} (${fullRounds} full rounds)
+
+Match Results:
+${matchDetails}
 
 Session Duration: ${totalMin}:${totalSec.toString().padStart(2, '0')}
-Avg per Game: ${avgMin}:${avgS.toString().padStart(2, '0')}
+Avg per Match: ${avgMin}:${avgS.toString().padStart(2, '0')}
 
-Played on ${new Date(session.startTime).toLocaleDateString()}`;
+Tracked with Billiards Score Tracker
+Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
         }
 
         function shareSessionData(session) {
             const text = generateShareText(session);
             if (navigator.share) {
                 navigator.share({
-                    title: `${session.player1} vs ${session.player2} - Billiards`,
+                    title: `Billiards Tournament - ${session.players ? session.players.join(' vs ') : ''}`,
                     text: text,
                 }).catch(() => copyToClipboard(text));
             } else {
@@ -502,7 +865,7 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
 
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text).then(() => {
-                alert("✅ Summary copied to clipboard!");
+                alert("✅ Tournament summary copied to clipboard!");
             }).catch(() => {
                 alert("Summary:\n\n" + text);
             });
@@ -518,16 +881,18 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
             sessionsHistory = sessionsHistory.filter(s => s.id !== id);
             localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
             
-            // If deleting the current unfinished session
             if (currentSession && currentSession.id === id) {
                 currentSession = null;
+                if (timerInterval) {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                }
                 document.getElementById('current-session').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
-                document.getElementById('setup-player1-name').value = 'Drey';
-                document.getElementById('setup-player2-name').value = 'Etienne';
+                initializePlayerSetup();
             }
             
-            showHistory(); // Refresh list
+            showHistory();
         }
 
         function hideSummary() {
@@ -537,8 +902,7 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
                 currentSession = null;
                 document.getElementById('current-session').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
-                document.getElementById('setup-player1-name').value = 'Drey';
-                document.getElementById('setup-player2-name').value = 'Etienne';
+                initializePlayerSetup();
             }
             showTab('session');
         }
@@ -553,12 +917,7 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
-            // Update buttons after ending session
-            document.getElementById('resume-summary-btn').classList.add('hidden');
-            document.getElementById('end-session-btn').classList.add('hidden');
-            document.getElementById('share-summary-btn').classList.remove('hidden');
-            document.getElementById('close-summary-btn').classList.remove('hidden');
-            document.getElementById('summary-modal').dataset.closed = 'true';
+            showSummary(); // Refresh summary with completed state
         }
 
         function saveCurrentSession() {
@@ -571,7 +930,14 @@ Played on ${new Date(session.startTime).toLocaleDateString()}`;
             showTab('history');
         }
 
-        window.onload = loadData;
+        // Ensure old references are cleaned
+        function resetSetupInputs() {
+            initializePlayerSetup();
+        }
+
+        window.onload = () => {
+            loadData();
+        };
     </script>
 </body>
 </html>
