@@ -570,21 +570,17 @@
 
             completed.forEach(s => {
                 const players = s.players || [s.player1, s.player2].filter(Boolean);
-                let winSummary = '';
-                let maxWins = 0;
-                if (s.matches) {
-                    players.forEach(p => {
-                        const w = s.matches.filter(m => m.winner === p).length;
-                        winSummary += `${p.substring(0,1)}:${w} `;
-                        if (w > maxWins) maxWins = w;
-                    });
-                } else if (s.games) {
-                    let s1 = 0;
-                    s.games.forEach(g => { if (g.winner === 1 || g.winnerName === players[0]) s1++; });
-                    winSummary = `${players[0].substring(0,1)}:${s1} ${players[1] ? players[1].substring(0,1)+':' + (s.games.length - s1) : ''}`;
-                }
+                const played = s.playedGames || s.matches || s.games || [];
+                const winCounts = {};
+                players.forEach(p => {
+                    winCounts[p] = played.filter(m => (m.winner === p || m.winnerName === p)).length;
+                });
+                // Sort players by wins desc (most wins first)
+                const sortedPlayers = [...players].sort((a, b) => winCounts[b] - winCounts[a] || a.localeCompare(b));
+                const maxWins = Math.max(...Object.values(winCounts), 0);
+                const playerDisplay = sortedPlayers.map(p => `${p} (${winCounts[p]})`).join(' • ');
 
-                const numMatches = s.matches ? s.matches.length : (s.games ? s.games.length : 0);
+                const numMatches = played.length || (s.matches ? s.matches.length : (s.games ? s.games.length : 0));
                 const totalMin = Math.floor((s.totalDuration || 0) / 60);
                 const totalSec = (s.totalDuration || 0) % 60;
                 const avg = numMatches ? Math.floor((s.totalDuration || 0) / numMatches) : 0;
@@ -601,12 +597,11 @@
                     <div class="flex justify-between items-start">
                         <div>
                             <div class="text-xs text-zinc-400">${dateStr} • ${timeStr}</div>
-                            <div class="font-semibold text-sm mt-1">${players.join(' • ')}</div>
-                            <div class="text-emerald-400 text-xs mt-1">${winSummary}</div>
+                            <div class="font-semibold text-sm mt-1">${playerDisplay}</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-3xl font-bold text-white">${maxWins}</div>
-                            <div class="text-[10px] text-emerald-400 -mt-1">WINS</div>
+                            <div class="text-3xl font-bold text-white">${numMatches}</div>
+                            <div class="text-[10px] text-emerald-400 -mt-1">games played</div>
                         </div>
                     </div>
                     <div class="flex justify-between text-[10px] mt-4 border-t border-zinc-700 pt-3">
