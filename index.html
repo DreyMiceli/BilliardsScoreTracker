@@ -63,11 +63,8 @@
             <div id="current-session" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
                 <!-- Current Match controls (moved to top) -->
                 <div class="bg-zinc-800/70 rounded-2xl p-4 mb-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-base font-semibold flex items-center gap-1"><i class="fas fa-gamepad text-sm"></i> <span id="match-counter" class="font-mono">Game 1 - Set 1 (1/3)</span></h3>
-                        </div>
-                        <div id="live-timer" class="timer-display text-emerald-400 text-sm"></div>
+                    <div class="flex justify-center items-center mb-4">
+                        <h3 class="text-base font-semibold text-center w-full"><i class="fas fa-gamepad text-sm"></i> <span id="match-counter" class="font-mono">Game 1 - Set 1 (1/3)</span></h3>
                     </div>
 
                     <div id="current-match-players" class="bg-zinc-950 rounded-2xl p-4 mb-6 text-center border border-zinc-700">
@@ -75,14 +72,14 @@
                     </div>
 
                     <div class="mb-4">
-                        <p class="text-zinc-400 text-xs mb-2">BREAKER (dictated by tournament)</p>
+                        <p class="text-zinc-400 text-xs mb-2 text-center">Breaker</p>
                         <div id="breaker-display" class="py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-emerald-400 border border-emerald-500/30">
                             <!-- Populated by JS -->
                         </div>
                     </div>
 
                     <div>
-                        <p class="text-zinc-400 text-xs mb-2">Who won this match?</p>
+                        <p class="text-zinc-400 text-xs mb-2 text-center">Who won this match?</p>
                         <div id="winner-buttons" class="grid grid-cols-2 gap-3"></div>
                     </div>
                     <button onclick="endSession()" 
@@ -284,6 +281,12 @@
                 totalDuration: 0
             };
             sessionsHistory.push(currentSession);
+
+            // Start the live timer immediately so 0:00 is visible as soon as the UI appears
+            if (timerInterval) clearInterval(timerInterval);
+            gameStartTime = null;
+            startTimer();
+
             saveData();
             showCurrentSession();
         }
@@ -350,7 +353,10 @@
             renderGameResults();
             renderCurrentMatch();
             renderGamesList();
-            startTimer();
+
+            // Only start the timer for a brand-new game; keep the existing timer running
+            // when the user is merely editing past results.
+            if (!gameStartTime) startTimer();
 
             const schedule = currentSession.schedule || [];
             const currentIdx = currentSession.currentMatchIndex || 0;
@@ -417,26 +423,36 @@
             const p2 = match.player2;
             const container = document.getElementById('game-results');
 
-            // Store original HTML so we can restore it cleanly
-            container.dataset.originalHtml = container.innerHTML;
-
             const color1 = getPlayerColor(p1);
             const color2 = getPlayerColor(p2);
             const isP1Winner = match.winner === p1;
             const isP2Winner = match.winner === p2;
 
+            const mins = Math.floor((match.duration || 0) / 60);
+            const secs = (match.duration || 0) % 60;
+            const durationStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+            const gameLabel = match.matchNum || (index + 1);
+            const breakerLabel = match.breaker || '—';
+
             container.innerHTML = `
-                <div class="flex gap-2 w-full items-center justify-center py-2">
-                    <button onclick="changeMatchWinner(${index}, '${p1.replace(/'/g, "\\'")}')" 
-                            class="flex-1 py-3 rounded-2xl bg-${color1}-600 text-white font-semibold ${isP1Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
-                        ${p1} ${isP1Winner ? '✓' : ''}
-                    </button>
-                    <button onclick="changeMatchWinner(${index}, '${p2.replace(/'/g, "\\'")}')"
-                            class="flex-1 py-3 rounded-2xl bg-${color2}-600 text-white font-semibold ${isP2Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
-                        ${p2} ${isP2Winner ? '✓' : ''}
-                    </button>
-                    <button onclick="cancelEditMatchResult()" 
-                            class="px-4 py-3 text-xs text-zinc-400">Cancel</button>
+                <div class="w-full">
+                    <div class="text-center mb-3 text-xs text-zinc-400 font-mono">
+                        Game ${gameLabel} • ${breakerLabel} broke • ${durationStr}
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="changeMatchWinner(${index}, '${p1.replace(/'/g, "\\'")}')" 
+                                class="py-3 rounded-2xl bg-${color1}-600 text-white font-semibold ${isP1Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
+                            ${p1} ${isP1Winner ? '✓' : ''}
+                        </button>
+                        <button onclick="changeMatchWinner(${index}, '${p2.replace(/'/g, "\\'")}')"
+                                class="py-3 rounded-2xl bg-${color2}-600 text-white font-semibold ${isP2Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
+                            ${p2} ${isP2Winner ? '✓' : ''}
+                        </button>
+                        <button onclick="confirmDeleteMatchResult(${index})" 
+                                class="py-3 text-xs bg-red-900 hover:bg-red-800 text-red-200 rounded-2xl">Delete Game</button>
+                        <button onclick="cancelEditMatchResult()" 
+                                class="py-3 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-2xl">Cancel</button>
+                    </div>
                 </div>
             `;
         }
@@ -453,21 +469,38 @@
                 currentSession.games[index].winnerName = newWinner;
             }
 
-            const container = document.getElementById('game-results');
-            delete container.dataset.originalHtml;
+            saveData();
+            renderCurrentSession();
+        }
+
+        function confirmDeleteMatchResult(index) {
+            if (!confirm('Delete this game result?')) return;
+            deleteMatchResult(index);
+        }
+
+        function deleteMatchResult(index) {
+            if (!currentSession || !currentSession.playedGames || index < 0 || index >= currentSession.playedGames.length) return;
+
+            // Remove the match from both arrays
+            currentSession.playedGames.splice(index, 1);
+            if (currentSession.games && currentSession.games.length > index) {
+                const removed = currentSession.games.splice(index, 1)[0];
+                // Reclaim the duration if it existed
+                if (removed && typeof removed.duration === 'number') {
+                    currentSession.totalDuration = Math.max(0, (currentSession.totalDuration || 0) - removed.duration);
+                }
+            }
+
+            // Roll the match index back so the deleted game becomes the current one again
+            currentSession.currentMatchIndex = Math.max(0, (currentSession.currentMatchIndex || 0) - 1);
 
             saveData();
             renderCurrentSession();
         }
 
         function cancelEditMatchResult() {
-            const container = document.getElementById('game-results');
-            if (container.dataset.originalHtml) {
-                container.innerHTML = container.dataset.originalHtml;
-                delete container.dataset.originalHtml;
-            } else {
-                renderCurrentSession();
-            }
+            // Always do a clean re-render so every bubble gets fresh onclick handlers.
+            renderCurrentSession();
         }
 
         function toggleGamesList() {
@@ -494,27 +527,38 @@
             const p2Color = getPlayerColor(matchTemplate.player2);
             const matchDiv = document.getElementById('current-match-players');
             matchDiv.innerHTML = `
-                <div class="flex items-center justify-center gap-6 text-xl">
-                    <div class="text-center">
-                        <div class="text-3xl font-bold text-${p1Color}-400">${matchTemplate.player1}</div>
+                <div class="flex flex-col items-center justify-center gap-1 text-xl w-full">
+                    <div class="flex items-center justify-center gap-6 w-full">
+                        <div class="flex-1 flex justify-end text-right pr-2">
+                            <div class="text-3xl font-bold text-${p1Color}-400">${matchTemplate.player1}</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-black text-zinc-600">VS</div>
+                        </div>
+                        <div class="flex-1 flex justify-start text-left pl-2">
+                            <div class="text-3xl font-bold text-${p2Color}-400">${matchTemplate.player2}</div>
+                        </div>
                     </div>
-                    <div class="text-4xl font-black text-zinc-600">VS</div>
-                    <div class="text-center">
-                        <div class="text-3xl font-bold text-${p2Color}-400">${matchTemplate.player2}</div>
-                    </div>
+                    <div id="live-timer" class="timer-display text-zinc-600 text-4xl font-black text-center min-h-[2.5rem]"></div>
                 </div>
-                <div class="text-[10px] text-zinc-500 mt-3">Game ${matchTemplate.matchNum} • Cycle ${Math.floor((currentSession.currentMatchIndex || 0) / schedule.length) + 1}</div>
             `;
 
             // Breaker (dictated from template, alternates on rematches)
             const effectiveBreaker = getEffectiveBreaker(matchTemplate);
             const breakerColor = getPlayerColor(effectiveBreaker);
             const breakerDiv = document.getElementById('breaker-display');
-            breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-${breakerColor}-400 border border-${breakerColor}-500/30`;
+            breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-${breakerColor}-400 border border-${breakerColor}-500/30 cursor-pointer hover:bg-zinc-800 active:scale-[0.98] transition-all`;
+            breakerDiv.title = 'Click to change breaker';
             breakerDiv.innerHTML = `
                 <i class="fas fa-gavel"></i>
                 <span>${effectiveBreaker} breaks</span>
             `;
+            breakerDiv.onclick = () => {
+                // Flip breaker for the current match template
+                const other = matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
+                matchTemplate.breaker = other;
+                renderCurrentMatch(); // refresh breaker display only
+            };
 
             renderWinnerButtons(matchTemplate);
         }
@@ -669,7 +713,20 @@
             const index = (currentSession.currentMatchIndex || 0) % (schedule.length || 1);
             const matchTemplate = schedule[index];
             if (!matchTemplate) return;
+
             const duration = stopAndSaveDuration();
+
+            // Guard against accidental double-clicks: confirm very short games
+            if (duration < 30) {
+                if (!confirm(`This match only took ${duration} second(s). Are you sure you want to record this result?`)) {
+                    // User cancelled — restart the timer and keep the current game active
+                    if (timerInterval) clearInterval(timerInterval);
+                    gameStartTime = null;
+                    startTimer();
+                    return;
+                }
+            }
+
             // Record completed instance with effective (alternating) breaker
             const effectiveBreaker = getEffectiveBreaker(matchTemplate);
             const result = {
@@ -689,7 +746,12 @@
             // Accumulate total duration
             currentSession.totalDuration = (currentSession.totalDuration || 0) + duration;
             saveData();
-            renderCurrentSession(); // Loops indefinitely until manual END SESSION
+            renderCurrentSession();
+
+            // Start a fresh timer for the next game (reset to 0:00)
+            if (timerInterval) clearInterval(timerInterval);
+            gameStartTime = null;
+            startTimer();
         }
 
         function endSession() {
