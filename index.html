@@ -138,24 +138,91 @@
 
     <script>
         let currentSession = null;
+        let summarySession = null; // session shown in summary modal (may differ from active session)
         let sessionsHistory = [];
         let currentBreaker = 1;
         let gameStartTime = null;
         let timerInterval = null;
         let setupPlayers = [];
         const PLAYER_COLORS = ['emerald', 'amber', 'sky', 'violet', 'rose', 'lime', 'cyan', 'fuchsia'];
+        const COLOR_TEXT = {
+            emerald: 'text-emerald-400', amber: 'text-amber-400', sky: 'text-sky-400', violet: 'text-violet-400',
+            rose: 'text-rose-400', lime: 'text-lime-400', cyan: 'text-cyan-400', fuchsia: 'text-fuchsia-400'
+        };
+        const COLOR_BG = {
+            emerald: 'bg-emerald-600', amber: 'bg-amber-600', sky: 'bg-sky-600', violet: 'bg-violet-600',
+            rose: 'bg-rose-600', lime: 'bg-lime-600', cyan: 'bg-cyan-600', fuchsia: 'bg-fuchsia-600'
+        };
+        const COLOR_BG_SOFT = {
+            emerald: 'bg-emerald-500/20', amber: 'bg-amber-500/20', sky: 'bg-sky-500/20', violet: 'bg-violet-500/20',
+            rose: 'bg-rose-500/20', lime: 'bg-lime-500/20', cyan: 'bg-cyan-500/20', fuchsia: 'bg-fuchsia-500/20'
+        };
+        const COLOR_BORDER = {
+            emerald: 'border-emerald-500/30', amber: 'border-amber-500/30', sky: 'border-sky-500/30', violet: 'border-violet-500/30',
+            rose: 'border-rose-500/30', lime: 'border-lime-500/30', cyan: 'border-cyan-500/30', fuchsia: 'border-fuchsia-500/30'
+        };
+        const COLOR_BORDER_HOVER = {
+            emerald: 'hover:border-emerald-400', amber: 'hover:border-amber-400', sky: 'hover:border-sky-400', violet: 'hover:border-violet-400',
+            rose: 'hover:border-rose-400', lime: 'hover:border-lime-400', cyan: 'hover:border-cyan-400', fuchsia: 'hover:border-fuchsia-400'
+        };
+        const COLOR_TEXT_SOFT = {
+            emerald: 'text-emerald-100', amber: 'text-amber-100', sky: 'text-sky-100', violet: 'text-violet-100',
+            rose: 'text-rose-100', lime: 'text-lime-100', cyan: 'text-cyan-100', fuchsia: 'text-fuchsia-100'
+        };
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function clearTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            gameStartTime = null;
+        }
+
+        function showWelcomeScreen() {
+            $('current-session')?.classList.add('hidden');
+            $('welcome-screen')?.classList.remove('hidden');
+            initializePlayerSetup();
+        }
+
+        function teardownToWelcome() {
+            clearTimer();
+            currentSession = null;
+            summarySession = null;
+            showWelcomeScreen();
+        }
 
         function loadData() {
             const saved = localStorage.getItem('billiardsSessions');
-            if (saved) sessionsHistory = JSON.parse(saved);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    sessionsHistory = Array.isArray(parsed) ? parsed : [];
+                } catch (e) {
+                    console.warn('Failed to parse billiardsSessions; resetting history.', e);
+                    sessionsHistory = [];
+                    try { localStorage.removeItem('billiardsSessions'); } catch (_) { /* ignore */ }
+                }
+            }
 
-            const unfinished = sessionsHistory.find(s => !s.completed);
+            const unfinished = sessionsHistory.find(s => s && !s.completed);
             if (unfinished) {
                 currentSession = unfinished;
                 showCurrentSession();
             } else {
-                document.getElementById('welcome-screen').classList.remove('hidden');
-                initializePlayerSetup();
+                showWelcomeScreen();
             }
         }
 
@@ -164,10 +231,16 @@
             const index = sessionsHistory.findIndex(s => s.id === currentSession.id);
             if (index >= 0) sessionsHistory[index] = currentSession;
             else sessionsHistory.push(currentSession);
-            localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+            try {
+                localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+            } catch (e) {
+                console.warn('Failed to save sessions', e);
+            }
         }
 
         function startTimer() {
+            // Only run when the live timer node exists (created in renderCurrentMatch)
+            if (!$('live-timer')) return;
             if (timerInterval) clearInterval(timerInterval);
             gameStartTime = Date.now();
             timerInterval = setInterval(updateLiveTimer, 1000);
@@ -176,7 +249,7 @@
 
         function updateLiveTimer() {
             if (!gameStartTime) return;
-            const timerEl = document.getElementById('live-timer');
+            const timerEl = $('live-timer');
             if (!timerEl) return;
             const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
             const m = Math.floor(elapsed / 60);
@@ -184,12 +257,23 @@
             timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
         }
 
-        function stopAndSaveDuration() {
+        function getElapsedSeconds() {
             if (!gameStartTime) return 0;
-            const duration = Math.floor((Date.now() - gameStartTime) / 1000);
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = null;
+            return Math.floor((Date.now() - gameStartTime) / 1000);
+        }
+
+        function stopAndSaveDuration() {
+            const duration = getElapsedSeconds();
+            clearTimer();
             return duration;
+        }
+
+        function resumeTimer() {
+            // Keep counting from the original gameStartTime (do not reset elapsed)
+            if (!gameStartTime || !$('live-timer')) return;
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateLiveTimer, 1000);
+            updateLiveTimer();
         }
 
         // Setup functions for multiple players
@@ -199,23 +283,31 @@
         }
 
         function renderPlayerSetup() {
-            const container = document.getElementById('player-setup-list');
+            const container = $('player-setup-list');
+            if (!container) return;
             container.innerHTML = '';
             setupPlayers.forEach((name, index) => {
                 const div = document.createElement('div');
                 div.className = 'flex items-center gap-3 bg-zinc-800 rounded-2xl p-1';
-                div.innerHTML = `
-                    <input 
-                        value="${name}" 
-                        class="flex-1 bg-transparent text-base font-semibold px-4 py-3 focus:outline-none text-center" 
-                        onchange="updatePlayerName(${index}, this.value)" 
-                        placeholder="Player name">
-                    ${setupPlayers.length > 2 ? `
-                    <button onclick="removePlayerFromSetup(${index}); event.stopImmediatePropagation()" 
-                            class="px-3 text-red-400 hover:text-red-500">
-                        <i class="fas fa-times"></i>
-                    </button>` : ''}
-                `;
+
+                const input = document.createElement('input');
+                input.value = name;
+                input.className = 'flex-1 bg-transparent text-base font-semibold px-4 py-3 focus:outline-none text-center';
+                input.placeholder = 'Player name';
+                input.onchange = () => updatePlayerName(index, input.value);
+                div.appendChild(input);
+
+                if (setupPlayers.length > 2) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'px-3 text-red-400 hover:text-red-500';
+                    removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+                    removeBtn.onclick = (e) => {
+                        e.stopImmediatePropagation();
+                        removePlayerFromSetup(index);
+                    };
+                    div.appendChild(removeBtn);
+                }
+
                 container.appendChild(div);
             });
         }
@@ -270,6 +362,9 @@
             // Randomize player order before generating the round-robin sequence
             const shuffledPlayers = [...uniquePlayers].sort(() => Math.random() - 0.5);
 
+            clearTimer();
+            summarySession = null;
+
             currentSession = {
                 id: 'sess_' + Date.now(),
                 date: new Date().toISOString().split('T')[0],
@@ -284,36 +379,33 @@
             };
             sessionsHistory.push(currentSession);
 
-            // Reset timer state; startTimer runs after the UI renders (#live-timer is created in renderCurrentMatch)
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = null;
-            gameStartTime = null;
-
             saveData();
             showCurrentSession();
         }
 
         function showCurrentSession() {
-            document.getElementById('welcome-screen').classList.add('hidden');
-            document.getElementById('current-session').classList.remove('hidden');
+            $('welcome-screen')?.classList.add('hidden');
+            $('current-session')?.classList.remove('hidden');
             showTab('session');
             renderCurrentSession();
         }
 
-        function getPlayerColor(playerName) {
-            if (!currentSession || !currentSession.players) return 'emerald';
-            const index = currentSession.players.indexOf(playerName);
+        function getPlayerColor(playerName, session = currentSession) {
+            if (!session || !session.players) return 'emerald';
+            const index = session.players.indexOf(playerName);
+            if (index < 0) return 'emerald';
             return PLAYER_COLORS[index % PLAYER_COLORS.length];
         }
 
-        function getPlayerWins(playerName) {
-            if (!currentSession) return 0;
-            const games = currentSession.playedGames || currentSession.matches || currentSession.games || [];
+        function getPlayerWins(playerName, session = currentSession) {
+            if (!session) return 0;
+            const games = session.playedGames || session.matches || session.games || [];
             return games.filter(g => (g.winner === playerName || g.winnerName === playerName)).length;
         }
 
         function getEffectiveBreaker(matchTemplate) {
-            if (!matchTemplate || !currentSession) return matchTemplate?.breaker;
+            if (!matchTemplate) return null;
+            if (!currentSession) return matchTemplate.breaker;
             const played = currentSession.playedGames || [];
             // Find prior meetings of this exact pair (order insensitive)
             const prior = played.filter(g =>
@@ -323,10 +415,9 @@
             const count = prior.length; // 0 = first time, use original; 1 = second time, flip, etc.
             if (count % 2 === 0) {
                 return matchTemplate.breaker;
-            } else {
-                // Flip to the other player in the pair
-                return matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
             }
+            // Flip to the other player in the pair
+            return matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
         }
 
         function renderCurrentSession() {
@@ -334,18 +425,24 @@
             if (!currentSession.players || !currentSession.schedule) {
                 // Backward compat for old 2-player sessions
                 if (currentSession.player1 && currentSession.player2) {
+                    const legacyGames = Array.isArray(currentSession.games) ? currentSession.games : [];
                     currentSession.players = [currentSession.player1, currentSession.player2];
-                    currentSession.schedule = currentSession.games.map(g => ({
-                        matchNum: g.gameNum || g.matchNum,
-                        player1: currentSession.player1,
-                        player2: currentSession.player2,
-                        breaker: g.breaker === 1 ? currentSession.player1 : currentSession.player2,
-                        winner: null,
-                        duration: 0,
-                        completed: false
+                    currentSession.schedule = legacyGames.length > 0
+                        ? legacyGames.map(g => ({
+                            matchNum: g.gameNum || g.matchNum,
+                            player1: currentSession.player1,
+                            player2: currentSession.player2,
+                            breaker: g.breaker === 1 ? currentSession.player1 : currentSession.player2,
+                            winner: null,
+                            duration: 0,
+                            completed: false
+                        }))
+                        : generateMatches(currentSession.players);
+                    currentSession.playedGames = legacyGames.map(g => ({
+                        ...g,
+                        winner: g.winnerName || (g.winner === 1 ? currentSession.player1 : currentSession.player2)
                     }));
-                    currentSession.playedGames = currentSession.games.map(g => ({...g, winner: g.winnerName || (g.winner === 1 ? currentSession.player1 : currentSession.player2)}));
-                    currentSession.currentMatchIndex = 0;
+                    currentSession.currentMatchIndex = currentSession.playedGames.length;
                 } else {
                     return;
                 }
@@ -353,18 +450,17 @@
 
             renderPlayerScores();
             renderGameResults();
-            renderCurrentMatch();
+            const matchReady = renderCurrentMatch();
             renderGamesList();
 
-            // Only start the timer for a brand-new game; keep the existing timer running
-            // when the user is merely editing past results.
-            if (!gameStartTime) startTimer();
+            // Only start the timer for a brand-new game after match UI (incl. #live-timer) exists
+            if (matchReady && !gameStartTime) startTimer();
+            else if (matchReady && gameStartTime) updateLiveTimer();
 
             const schedule = currentSession.schedule || [];
             const currentIdx = currentSession.currentMatchIndex || 0;
             const cycleLength = schedule.length || 1;
             const positionInCycle = currentIdx % cycleLength;
-            const matchTemplate = schedule[positionInCycle] || {};
 
             // Game = current overall game count
             const totalGames = (currentSession.playedGames ? currentSession.playedGames.length : currentIdx) + 1;
@@ -375,28 +471,33 @@
             // Set Game = which specific matchup within the current Set
             const setGame = positionInCycle + 1;
 
-            document.getElementById('match-counter').textContent =
-                `Game ${totalGames} - Set ${currentSet} (${setGame}/${cycleLength})`;
+            const matchCounter = $('match-counter');
+            if (matchCounter) {
+                matchCounter.textContent =
+                    `Game ${totalGames} - Set ${currentSet} (${setGame}/${cycleLength})`;
+            }
         }
 
         function renderPlayerScores() {
-            const container = document.getElementById('player-scores');
+            const container = $('player-scores');
+            if (!container || !currentSession?.players) return;
             container.innerHTML = '';
             currentSession.players.forEach(player => {
                 const wins = getPlayerWins(player);
                 const color = getPlayerColor(player);
                 const div = document.createElement('div');
-                div.className = `bg-zinc-800 rounded-2xl p-4 text-center flex-1 min-w-[110px] border border-transparent hover:border-${color}-400/50 transition-all`;
+                div.className = `bg-zinc-800 rounded-2xl p-4 text-center flex-1 min-w-[110px] border border-transparent transition-all ${COLOR_BORDER_HOVER[color] || ''}`;
                 div.innerHTML = `
-                    <div class="text-5xl font-bold text-${color}-400 mb-1">${wins}</div>
-                    <div class="text-[10px] uppercase tracking-widest text-zinc-500">${player}</div>
+                    <div class="text-5xl font-bold ${COLOR_TEXT[color] || 'text-emerald-400'} mb-1">${wins}</div>
+                    <div class="text-[10px] uppercase tracking-widest text-zinc-500">${escapeHtml(player)}</div>
                 `;
                 container.appendChild(div);
             });
         }
 
         function renderGameResults() {
-            const container = document.getElementById('game-results');
+            const container = $('game-results');
+            if (!container || !currentSession) return;
             container.innerHTML = '';
             const completed = currentSession.playedGames || currentSession.matches?.filter(m => m.completed && m.winner) || currentSession.games || [];
             if (completed.length === 0) {
@@ -405,10 +506,10 @@
             }
             completed.forEach((match, idx) => {
                 const winnerName = match.winner || match.winnerName || (typeof match.winner === 'number' ? (match.winner === 1 ? (currentSession.players?.[0] || currentSession.player1) : (currentSession.players?.[1] || currentSession.player2)) : '');
-                const color = getPlayerColor ? getPlayerColor(winnerName) : 'emerald';
+                const color = getPlayerColor(winnerName);
                 const initial = winnerName ? winnerName.substring(0, 1).toUpperCase() : '?';
                 const box = document.createElement('div');
-                box.className = `w-9 h-9 rounded-2xl bg-${color}-600 flex items-center justify-center text-xs font-bold text-white shadow-md flex-shrink-0 cursor-pointer active:scale-95 transition-transform`;
+                box.className = `w-9 h-9 rounded-2xl ${COLOR_BG[color] || 'bg-emerald-600'} flex items-center justify-center text-xs font-bold text-white shadow-md flex-shrink-0 cursor-pointer active:scale-95 transition-transform`;
                 box.textContent = initial;
                 box.title = `Click to edit: ${winnerName} won match ${match.matchNum || idx+1}`;
                 box.onclick = () => editMatchResult(idx);
@@ -423,7 +524,8 @@
 
             const p1 = match.player1;
             const p2 = match.player2;
-            const container = document.getElementById('game-results');
+            const container = $('game-results');
+            if (!container) return;
 
             const color1 = getPlayerColor(p1);
             const color2 = getPlayerColor(p2);
@@ -436,30 +538,47 @@
             const gameLabel = match.matchNum || (index + 1);
             const breakerLabel = match.breaker || '—';
 
-            container.innerHTML = `
-                <div class="w-full">
-                    <div class="text-center mb-3 text-xs text-zinc-400 font-mono">
-                        Game ${gameLabel} • ${breakerLabel} broke • ${durationStr}
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button onclick="changeMatchWinner(${index}, '${p1.replace(/'/g, "\\'")}')" 
-                                class="py-3 rounded-2xl bg-${color1}-600 text-white font-semibold ${isP1Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
-                            ${p1} ${isP1Winner ? '✓' : ''}
-                        </button>
-                        <button onclick="changeMatchWinner(${index}, '${p2.replace(/'/g, "\\'")}')"
-                                class="py-3 rounded-2xl bg-${color2}-600 text-white font-semibold ${isP2Winner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}">
-                            ${p2} ${isP2Winner ? '✓' : ''}
-                        </button>
-                        <button onclick="confirmDeleteMatchResult(${index})" 
-                                class="py-3 text-xs bg-red-900 hover:bg-red-800 text-red-200 rounded-2xl">Delete Game</button>
-                        <button onclick="cancelEditMatchResult()" 
-                                class="py-3 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-2xl">Cancel</button>
-                    </div>
-                </div>
-            `;
+            container.innerHTML = '';
+            const wrap = document.createElement('div');
+            wrap.className = 'w-full';
+
+            const meta = document.createElement('div');
+            meta.className = 'text-center mb-3 text-xs text-zinc-400 font-mono';
+            meta.textContent = `Game ${gameLabel} • ${breakerLabel} broke • ${durationStr}`;
+            wrap.appendChild(meta);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-2 gap-2';
+
+            const makeWinnerBtn = (playerName, color, isWinner) => {
+                const btn = document.createElement('button');
+                btn.className = `py-3 rounded-2xl ${COLOR_BG[color] || 'bg-emerald-600'} text-white font-semibold ${isWinner ? 'ring-4 ring-offset-2 ring-offset-zinc-900 ring-white' : ''}`;
+                btn.textContent = `${playerName}${isWinner ? ' ✓' : ''}`;
+                btn.onclick = () => changeMatchWinner(index, playerName);
+                return btn;
+            };
+
+            grid.appendChild(makeWinnerBtn(p1, color1, isP1Winner));
+            grid.appendChild(makeWinnerBtn(p2, color2, isP2Winner));
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'py-3 text-xs bg-red-900 hover:bg-red-800 text-red-200 rounded-2xl';
+            deleteBtn.textContent = 'Delete Game';
+            deleteBtn.onclick = () => confirmDeleteMatchResult(index);
+            grid.appendChild(deleteBtn);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'py-3 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-2xl';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => cancelEditMatchResult();
+            grid.appendChild(cancelBtn);
+
+            wrap.appendChild(grid);
+            container.appendChild(wrap);
         }
 
         function changeMatchWinner(index, newWinner) {
+            if (!currentSession?.playedGames) return;
             const match = currentSession.playedGames[index];
             if (!match) return;
 
@@ -483,14 +602,13 @@
         function deleteMatchResult(index) {
             if (!currentSession || !currentSession.playedGames || index < 0 || index >= currentSession.playedGames.length) return;
 
-            // Remove the match from both arrays
-            currentSession.playedGames.splice(index, 1);
+            // Remove the match and reclaim its duration
+            const removedPlayed = currentSession.playedGames.splice(index, 1)[0];
+            if (removedPlayed && typeof removedPlayed.duration === 'number') {
+                currentSession.totalDuration = Math.max(0, (currentSession.totalDuration || 0) - removedPlayed.duration);
+            }
             if (currentSession.games && currentSession.games.length > index) {
-                const removed = currentSession.games.splice(index, 1)[0];
-                // Reclaim the duration if it existed
-                if (removed && typeof removed.duration === 'number') {
-                    currentSession.totalDuration = Math.max(0, (currentSession.totalDuration || 0) - removed.duration);
-                }
+                currentSession.games.splice(index, 1);
             }
 
             // Roll the match index back so the deleted game becomes the current one again
@@ -506,8 +624,9 @@
         }
 
         function toggleGamesList() {
-            const list = document.getElementById('games-list');
-            const chevron = document.getElementById('games-list-chevron');
+            const list = $('games-list');
+            const chevron = $('games-list-chevron');
+            if (!list || !chevron) return;
 
             if (list.classList.contains('hidden')) {
                 list.classList.remove('hidden');
@@ -519,64 +638,80 @@
         }
 
         function renderCurrentMatch() {
+            if (!currentSession) return false;
             const schedule = currentSession.schedule || currentSession.matches || [];
-            const index = (currentSession.currentMatchIndex || 0) % (schedule.length || 1);
+            if (!schedule.length) return false;
+            const index = (currentSession.currentMatchIndex || 0) % schedule.length;
             const matchTemplate = schedule[index];
-            if (!matchTemplate) return;
+            if (!matchTemplate) return false;
 
             // Current match players display (from schedule template)
             const p1Color = getPlayerColor(matchTemplate.player1);
             const p2Color = getPlayerColor(matchTemplate.player2);
-            const matchDiv = document.getElementById('current-match-players');
+            const matchDiv = $('current-match-players');
+            if (!matchDiv) return false;
+
+            // Preserve elapsed timer text across re-renders of this block
+            const previousTimerText = $('live-timer')?.textContent || '';
+
             matchDiv.innerHTML = `
                 <div class="flex flex-col items-center justify-center gap-1 text-xl w-full">
                     <div class="flex items-center justify-center gap-6 w-full">
                         <div class="flex-1 flex justify-end text-right pr-2">
-                            <div class="text-3xl font-bold text-${p1Color}-400">${matchTemplate.player1}</div>
+                            <div class="text-3xl font-bold ${COLOR_TEXT[p1Color] || 'text-emerald-400'}">${escapeHtml(matchTemplate.player1)}</div>
                         </div>
                         <div class="text-center">
                             <div class="text-4xl font-black text-zinc-600">VS</div>
                         </div>
                         <div class="flex-1 flex justify-start text-left pl-2">
-                            <div class="text-3xl font-bold text-${p2Color}-400">${matchTemplate.player2}</div>
+                            <div class="text-3xl font-bold ${COLOR_TEXT[p2Color] || 'text-emerald-400'}">${escapeHtml(matchTemplate.player2)}</div>
                         </div>
                     </div>
                     <div id="live-timer" class="timer-display text-zinc-600 text-4xl font-black text-center min-h-[2.5rem]"></div>
                 </div>
             `;
 
+            if (previousTimerText && $('live-timer')) {
+                $('live-timer').textContent = previousTimerText;
+            }
+
             // Breaker (dictated from template, alternates on rematches)
             const effectiveBreaker = getEffectiveBreaker(matchTemplate);
             const breakerColor = getPlayerColor(effectiveBreaker);
-            const breakerDiv = document.getElementById('breaker-display');
-            breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-${breakerColor}-400 border border-${breakerColor}-500/30 cursor-pointer hover:bg-zinc-800 active:scale-[0.98] transition-all`;
-            breakerDiv.title = 'Click to change breaker';
-            breakerDiv.innerHTML = `
-                <i class="fas fa-gavel"></i>
-                <span>${effectiveBreaker} breaks</span>
-            `;
-            breakerDiv.onclick = () => {
-                // Flip breaker for the current match template
-                const other = matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
-                matchTemplate.breaker = other;
-                renderCurrentMatch(); // refresh breaker display only
-            };
+            const breakerDiv = $('breaker-display');
+            if (breakerDiv) {
+                breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 ${COLOR_TEXT[breakerColor] || 'text-emerald-400'} border ${COLOR_BORDER[breakerColor] || 'border-emerald-500/30'} cursor-pointer hover:bg-zinc-800 active:scale-[0.98] transition-all`;
+                breakerDiv.title = 'Click to change breaker';
+                breakerDiv.innerHTML = `
+                    <i class="fas fa-gavel"></i>
+                    <span>${escapeHtml(effectiveBreaker || '')} breaks</span>
+                `;
+                breakerDiv.onclick = () => {
+                    // Flip breaker for the current match template
+                    const other = matchTemplate.breaker === matchTemplate.player1 ? matchTemplate.player2 : matchTemplate.player1;
+                    matchTemplate.breaker = other;
+                    renderCurrentMatch(); // refresh breaker display only
+                    if (gameStartTime) updateLiveTimer();
+                };
+            }
 
             renderWinnerButtons(matchTemplate);
+            return true;
         }
 
         function renderWinnerButtons(match) {
-            const container = document.getElementById('winner-buttons');
+            const container = $('winner-buttons');
+            if (!container || !match) return;
             container.innerHTML = '';
             const p1 = match.player1;
             const p2 = match.player2;
             [p1, p2].forEach(playerName => {
                 const color = getPlayerColor(playerName);
                 const btn = document.createElement('button');
-                btn.className = `group py-6 rounded-3xl font-bold text-lg flex flex-col items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 hover:border-${color}-400 transition-all active:scale-[0.98]`;
+                btn.className = `group py-6 rounded-3xl font-bold text-lg flex flex-col items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 ${COLOR_BORDER_HOVER[color] || 'hover:border-emerald-400'} transition-all active:scale-[0.98]`;
                 btn.innerHTML = `
-                    <i class="fas fa-trophy text-2xl text-${color}-400 group-active:scale-110 transition-transform"></i>
-                    <span class="text-${color}-100">${playerName}</span>
+                    <i class="fas fa-trophy text-2xl ${COLOR_TEXT[color] || 'text-emerald-400'} group-active:scale-110 transition-transform"></i>
+                    <span class="${COLOR_TEXT_SOFT[color] || 'text-emerald-100'}">${escapeHtml(playerName)}</span>
                 `;
                 btn.onclick = () => declareMatchWinner(playerName);
                 container.appendChild(btn);
@@ -584,10 +719,11 @@
         }
 
         function showTab(tab) {
-            const sessionTab = document.getElementById('session-tab');
-            const historyTab = document.getElementById('history-tab');
-            const sessionBtn = document.getElementById('session-tab-btn');
-            const historyBtn = document.getElementById('history-tab-btn');
+            const sessionTab = $('session-tab');
+            const historyTab = $('history-tab');
+            const sessionBtn = $('session-tab-btn');
+            const historyBtn = $('history-tab-btn');
+            if (!sessionTab || !historyTab || !sessionBtn || !historyBtn) return;
             const isSession = tab === 'session';
 
             sessionTab.classList.toggle('hidden', !isSession);
@@ -603,10 +739,11 @@
         }
 
         function populateHistory() {
-            const container = document.getElementById('history-list');
+            const container = $('history-list');
+            if (!container) return;
             container.innerHTML = '';
 
-            const completed = sessionsHistory.filter(s => s.completed).reverse();
+            const completed = sessionsHistory.filter(s => s && s.completed).reverse();
 
             if (completed.length === 0) {
                 container.innerHTML = `<div class="text-center py-20 text-zinc-500">No completed sessions yet.<br><br>Complete a round-robin tournament to see history here.</div>`;
@@ -622,8 +759,7 @@
                 });
                 // Sort players by wins desc (most wins first)
                 const sortedPlayers = [...players].sort((a, b) => winCounts[b] - winCounts[a] || a.localeCompare(b));
-                const maxWins = Math.max(...Object.values(winCounts), 0);
-                const playerDisplay = sortedPlayers.map(p => `${p} (${winCounts[p]})`).join(' • ');
+                const playerDisplay = sortedPlayers.map(p => `${escapeHtml(p)} (${winCounts[p]})`).join(' • ');
 
                 const numMatches = played.length || (s.matches ? s.matches.length : (s.games ? s.games.length : 0));
                 const totalMin = Math.floor((s.totalDuration || 0) / 60);
@@ -656,28 +792,34 @@
                             <span class="text-emerald-400">Game Avg ${avgMin}:${avgS.toString().padStart(2,'0')}</span>
                         </div>
                         <div class="flex gap-3">
-                            <button onclick="event.stopImmediatePropagation(); shareSessionData(${JSON.stringify(s).replace(/"/g, '&quot;')}); event.stopImmediatePropagation();" 
-                                    class="text-blue-400 hover:text-blue-300">
+                            <button type="button" data-action="share" class="text-blue-400 hover:text-blue-300">
                                 <i class="fas fa-share-alt"></i>
                             </button>
-                            <button onclick="event.stopImmediatePropagation(); deleteSession('${s.id}');" 
-                                    class="text-red-400 hover:text-red-500">
+                            <button type="button" data-action="delete" class="text-red-400 hover:text-red-500">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
                     </div>
                 `;
+                div.querySelector('[data-action="share"]')?.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                    shareSessionById(s.id);
+                });
+                div.querySelector('[data-action="delete"]')?.addEventListener('click', (e) => {
+                    e.stopImmediatePropagation();
+                    deleteSession(s.id);
+                });
                 div.onclick = () => {
-                    // Optional: view full summary
-                    currentSession = s;
-                    showSummary();
+                    // View history summary without clobbering an active unfinished session
+                    showSummary(s);
                 };
                 container.appendChild(div);
             });
         }
 
         function renderGamesList() {
-            const container = document.getElementById('games-list');
+            const container = $('games-list');
+            if (!container || !currentSession) return;
             container.innerHTML = '';
             const allMatches = currentSession.playedGames || currentSession.matches || currentSession.games || [];
             if (allMatches.length === 0) {
@@ -696,9 +838,9 @@
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-zinc-700 rounded-lg flex items-center justify-center font-mono text-[10px]">${match.matchNum || i+1}</div>
                         <div class="text-xs">
-                            <div class="text-zinc-400">${breakerName} broke</div>
-                            <div class="font-medium">${winnerName} won</div>
-                            <div class="text-[10px] text-zinc-500">${match.player1 || ''} vs ${match.player2 || ''}</div>
+                            <div class="text-zinc-400">${escapeHtml(breakerName)} broke</div>
+                            <div class="font-medium">${escapeHtml(winnerName)} won</div>
+                            <div class="text-[10px] text-zinc-500">${escapeHtml(match.player1 || '')} vs ${escapeHtml(match.player2 || '')}</div>
                         </div>
                     </div>
                     <div class="text-right text-emerald-400 text-xs font-mono">
@@ -711,23 +853,27 @@
         }
 
         function declareMatchWinner(winnerName) {
+            if (!currentSession) return;
             const schedule = currentSession.schedule || currentSession.matches || [];
-            const index = (currentSession.currentMatchIndex || 0) % (schedule.length || 1);
+            if (!schedule.length) return;
+            const index = (currentSession.currentMatchIndex || 0) % schedule.length;
             const matchTemplate = schedule[index];
             if (!matchTemplate) return;
 
-            const duration = stopAndSaveDuration();
+            // Peek elapsed time without stopping — cancel must keep the same timer running
+            const previewDuration = getElapsedSeconds();
 
             // Guard against accidental double-clicks: confirm very short games
-            if (duration < 30) {
-                if (!confirm(`This match only took ${duration} second(s). Are you sure you want to record this result?`)) {
-                    // User cancelled — restart the timer and keep the current game active
-                    if (timerInterval) clearInterval(timerInterval);
-                    gameStartTime = null;
-                    startTimer();
+            if (previewDuration < 30) {
+                if (!confirm(`This match only took ${previewDuration} second(s). Are you sure you want to record this result?`)) {
+                    // User cancelled — leave gameStartTime as-is so elapsed continues
+                    resumeTimer();
                     return;
                 }
             }
+
+            // Confirmed (or long enough): stop timer and record this game's duration
+            const duration = stopAndSaveDuration();
 
             // Record completed instance with effective (alternating) breaker
             const effectiveBreaker = getEffectiveBreaker(matchTemplate);
@@ -750,75 +896,102 @@
             saveData();
             renderCurrentSession();
 
-            // Start a fresh timer for the next game (reset to 0:00)
-            if (timerInterval) clearInterval(timerInterval);
-            gameStartTime = null;
+            // Start a fresh timer only for the next game
+            clearTimer();
             startTimer();
+        }
+
+        function sessionHasMatches(session) {
+            if (!session) return false;
+            if (session.playedGames && session.playedGames.length > 0) return true;
+            if (session.games && session.games.length > 0) return true;
+            if (session.matches && session.matches.some(m => m.completed || m.winner || m.winnerName)) return true;
+            return false;
         }
 
         function endSession() {
             if (!currentSession) return;
-            const hasMatches = (currentSession.matches && currentSession.matches.some(m => m.completed)) || (currentSession.games && currentSession.games.length > 0);
-            if (!hasMatches) {
+            if (!sessionHasMatches(currentSession)) {
                 if (confirm("Delete empty session?")) {
                     sessionsHistory = sessionsHistory.filter(s => s.id !== currentSession?.id);
-                    localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
-                    currentSession = null;
-                    if (timerInterval) {
-                        clearInterval(timerInterval);
-                        timerInterval = null;
+                    try {
+                        localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+                    } catch (e) {
+                        console.warn('Failed to save sessions', e);
                     }
-                    document.getElementById('welcome-screen').classList.remove('hidden');
-                    document.getElementById('current-session').classList.add('hidden');
-                    initializePlayerSetup();
+                    teardownToWelcome();
                 }
                 return;
             }
-            showSummary();
+            showSummary(currentSession);
         }
 
-        function showSummary() {
-            const modal = document.getElementById('summary-modal');
-            const content = document.getElementById('summary-content');
-            const scheduleLen = (currentSession.schedule || currentSession.matches || []).length;
-            const played = currentSession.playedGames ? currentSession.playedGames.length : (currentSession.matches ? currentSession.matches.filter(m => m.completed).length : (currentSession.games ? currentSession.games.length : 0));
-            const totalDuration = currentSession.totalDuration || Math.floor((Date.now() - currentSession.startTime) / 1000);
+        function showSummary(session = currentSession) {
+            if (!session) return;
+            summarySession = session;
+
+            const modal = $('summary-modal');
+            const content = $('summary-content');
+            if (!modal || !content) return;
+
+            const scheduleLen = (session.schedule || session.matches || []).length || 1;
+            const playedList = session.playedGames || session.games || (session.matches ? session.matches.filter(m => m.completed) : []) || [];
+            const played = playedList.length;
+            const totalDuration = typeof session.totalDuration === 'number'
+                ? session.totalDuration
+                : Math.floor((Date.now() - (session.startTime || Date.now())) / 1000);
             const avg = played ? Math.floor(totalDuration / played) : 0;
             const fullRounds = scheduleLen > 0 ? Math.floor(played / scheduleLen) : 0;
+            const remainder = scheduleLen > 0 ? played % scheduleLen : 0;
 
             let standingsHTML = '<div class="space-y-3">';
-            if (currentSession.players) {
-                currentSession.players.forEach((player, idx) => {
-                    const wins = getPlayerWins(player);
-                    const color = getPlayerColor(player);
+            if (session.players) {
+                session.players.forEach((player) => {
+                    const wins = getPlayerWins(player, session);
+                    const color = getPlayerColor(player, session);
+                    const initial = (player && player[0]) ? player[0].toUpperCase() : '?';
                     standingsHTML += `
                         <div class="flex justify-between items-center bg-zinc-800 rounded-2xl px-4 py-3">
                             <div class="flex items-center gap-3">
-                                <div class="w-6 h-6 rounded-full bg-${color}-500/20 flex items-center justify-center text-${color}-400 text-xs font-bold">${player[0].toUpperCase()}</div>
-                                <span class="font-medium">${player}</span>
+                                <div class="w-6 h-6 rounded-full ${COLOR_BG_SOFT[color] || 'bg-emerald-500/20'} flex items-center justify-center ${COLOR_TEXT[color] || 'text-emerald-400'} text-xs font-bold">${escapeHtml(initial)}</div>
+                                <span class="font-medium">${escapeHtml(player)}</span>
                             </div>
-                            <div class="text-3xl font-bold text-${color}-400">${wins}</div>
+                            <div class="text-3xl font-bold ${COLOR_TEXT[color] || 'text-emerald-400'}">${wins}</div>
                         </div>
                     `;
                 });
             } else {
                 // old 2 player fallback
                 let s1 = 0, s2 = 0;
-                (currentSession.games || []).forEach(g => {
-                    if (g.winner === 1 || g.winnerName === currentSession.player1) s1++;
+                (session.games || []).forEach(g => {
+                    if (g.winner === 1 || g.winnerName === session.player1) s1++;
                     else s2++;
                 });
                 standingsHTML += `
                     <div class="text-5xl font-bold">${s1} - ${s2}</div>
-                    <div>${currentSession.player1 || ''} vs ${currentSession.player2 || ''}</div>
+                    <div>${escapeHtml(session.player1 || '')} vs ${escapeHtml(session.player2 || '')}</div>
                 `;
             }
             standingsHTML += '</div>';
 
+            const playersLabel = session.players
+                ? session.players.map(escapeHtml).join(' • ')
+                : `${escapeHtml(session.player1 || '')} • ${escapeHtml(session.player2 || '')}`;
+
+            const matchLog = (session.playedGames && session.playedGames.length > 0)
+                ? `<div class="mt-6 text-xs text-zinc-400 bg-zinc-950 p-3 rounded-xl font-mono leading-relaxed max-h-40 overflow-y-auto">
+                    ${session.playedGames.map((m) => {
+                        const p1Tags = `${m.breaker === m.player1 ? '(B)' : ''}${m.winner === m.player1 ? '(W)' : ''}`;
+                        const p2Tags = `${m.breaker === m.player2 ? '(B)' : ''}${m.winner === m.player2 ? '(W)' : ''}`;
+                        return `${escapeHtml(m.matchNum)} (r${escapeHtml(m.round || 1)}): ${escapeHtml(m.player1)} ${p1Tags} vs ${escapeHtml(m.player2)} ${p2Tags}`;
+                    }).join('<br>')}
+                </div>`
+                : '';
+
             content.innerHTML = `
                 <div class="text-center mb-6">
                     <div class="text-4xl font-bold text-emerald-400">Tournament Summary</div>
-                    <div class="text-zinc-400 mt-1">${currentSession.players ? currentSession.players.join(' • ') : ''} • ${fullRounds} full round(s) + ${played % scheduleLen} matches</div>
+                    <div class="text-zinc-400 mt-1">${playersLabel} • ${fullRounds} full round(s) + ${remainder} matches</div>
                 </div>
                 <div class="mb-6">
                     ${standingsHTML}
@@ -837,34 +1010,26 @@
                         <div class="text-xs text-zinc-400">AVG/MATCH</div>
                     </div>
                 </div>
-                ${currentSession.playedGames && currentSession.playedGames.length > 0 ? `
-                <div class="mt-6 text-xs text-zinc-400 bg-zinc-950 p-3 rounded-xl font-mono leading-relaxed max-h-40 overflow-y-auto">
-                    ${currentSession.playedGames.map((m, i) => {
-                        const p1Tags = `${m.breaker === m.player1 ? '(B)' : ''}${m.winner === m.player1 ? '(W)' : ''}`;
-                        const p2Tags = `${m.breaker === m.player2 ? '(B)' : ''}${m.winner === m.player2 ? '(W)' : ''}`;
-                        return `${m.matchNum} (r${m.round || 1}): ${m.player1} ${p1Tags} vs ${m.player2} ${p2Tags}`;
-                    }).join('<br>')}
-                </div>` : ''}
+                ${matchLog}
             `;
 
-            const isCompleted = !!currentSession.completed;
-            if (isCompleted) {
-                document.getElementById('resume-summary-btn').classList.add('hidden');
-                document.getElementById('end-session-btn').classList.add('hidden');
-                document.getElementById('share-summary-btn').classList.remove('hidden');
-                document.getElementById('close-summary-btn').classList.remove('hidden');
-                modal.dataset.closed = 'true';
-            } else {
-                document.getElementById('resume-summary-btn').classList.remove('hidden');
-                document.getElementById('end-session-btn').classList.remove('hidden');
-                document.getElementById('share-summary-btn').classList.add('hidden');
-                document.getElementById('close-summary-btn').classList.add('hidden');
-                modal.dataset.closed = 'false';
-            }
+            // Completed history view, or active session already marked completed
+            const isCompleted = !!session.completed;
+            const viewingHistoryWhileActive = isCompleted && currentSession && currentSession.id !== session.id && !currentSession.completed;
+
+            $('resume-summary-btn')?.classList.toggle('hidden', isCompleted);
+            $('end-session-btn')?.classList.toggle('hidden', isCompleted);
+            $('share-summary-btn')?.classList.toggle('hidden', !isCompleted);
+            $('close-summary-btn')?.classList.toggle('hidden', !isCompleted);
+
+            // "closed" means closing should leave summary without ending an active unfinished session
+            modal.dataset.closed = isCompleted ? 'true' : 'false';
+            modal.dataset.historyOnly = viewingHistoryWhileActive ? 'true' : 'false';
             modal.classList.remove('hidden');
         }
 
         function generateShareText(session) {
+            if (!session) return '';
             const players = session.players || [session.player1 || 'P1', session.player2 || 'P2'].filter(Boolean);
             const played = session.playedGames || session.games || [];
             const scheduleLen = (session.schedule || session.matches || []).length || 1;
@@ -877,7 +1042,9 @@
             });
 
             const numMatches = played.length;
-            const duration = session.totalDuration ?? Math.floor((Date.now() - (session.startTime || Date.now())) / 1000);
+            const duration = typeof session.totalDuration === 'number'
+                ? session.totalDuration
+                : Math.floor((Date.now() - (session.startTime || Date.now())) / 1000);
             const totalMin = Math.floor(duration / 60);
             const totalSec = duration % 60;
             const avg = numMatches ? Math.floor(duration / numMatches) : 0;
@@ -911,6 +1078,7 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
         }
 
         function shareSessionData(session) {
+            if (!session) return;
             const text = generateShareText(session);
             if (navigator.share) {
                 navigator.share({
@@ -922,46 +1090,76 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
             }
         }
 
+        function shareSessionById(id) {
+            const session = sessionsHistory.find(s => s.id === id);
+            if (session) shareSessionData(session);
+        }
+
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert("✅ Tournament summary copied to clipboard!");
-            }).catch(() => {
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert("✅ Tournament summary copied to clipboard!");
+                }).catch(() => {
+                    alert("Summary:\n\n" + text);
+                });
+            } else {
                 alert("Summary:\n\n" + text);
-            });
+            }
         }
 
         function shareSession() {
-            if (currentSession) shareSessionData(currentSession);
+            const session = summarySession || currentSession;
+            if (session) shareSessionData(session);
         }
 
         function deleteSession(id) {
             if (!confirm("Delete this session permanently?")) return;
             
             sessionsHistory = sessionsHistory.filter(s => s.id !== id);
-            localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+            try {
+                localStorage.setItem('billiardsSessions', JSON.stringify(sessionsHistory));
+            } catch (e) {
+                console.warn('Failed to save sessions', e);
+            }
             
             if (currentSession && currentSession.id === id) {
-                currentSession = null;
-                if (timerInterval) {
-                    clearInterval(timerInterval);
-                    timerInterval = null;
-                }
-                document.getElementById('current-session').classList.add('hidden');
-                document.getElementById('welcome-screen').classList.remove('hidden');
-                initializePlayerSetup();
+                teardownToWelcome();
+            }
+            if (summarySession && summarySession.id === id) {
+                summarySession = null;
+                $('summary-modal')?.classList.add('hidden');
             }
             
             showHistory();
         }
 
         function hideSummary() {
-            const modal = document.getElementById('summary-modal');
+            const modal = $('summary-modal');
+            if (!modal) return;
             modal.classList.add('hidden');
-            if (modal.dataset.closed === 'true') {
-                currentSession = null;
-                document.getElementById('current-session').classList.add('hidden');
-                document.getElementById('welcome-screen').classList.remove('hidden');
-                initializePlayerSetup();
+
+            const closed = modal.dataset.closed === 'true';
+            const historyOnly = modal.dataset.historyOnly === 'true';
+            const viewed = summarySession;
+            summarySession = null;
+
+            if (closed) {
+                // Closing a completed summary:
+                // - If we only viewed history while an unfinished session is active, keep it.
+                // - If the active session itself was completed, tear down to welcome.
+                if (historyOnly && currentSession && !currentSession.completed) {
+                    showTab('session');
+                    return;
+                }
+                if (currentSession && currentSession.completed) {
+                    teardownToWelcome();
+                    showTab('session');
+                    return;
+                }
+                // Viewed a history item with no active unfinished session
+                if (!currentSession || (viewed && currentSession.id === viewed.id && currentSession.completed)) {
+                    teardownToWelcome();
+                }
             }
             showTab('session');
         }
@@ -969,14 +1167,17 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
         function confirmCloseSession() {
             if (!currentSession || currentSession.completed) return;
             currentSession.endTime = Date.now();
-            currentSession.totalDuration = Math.floor((currentSession.endTime - currentSession.startTime) / 1000);
+            // Prefer accumulated match durations; fall back to wall-clock only if unset
+            if (typeof currentSession.totalDuration !== 'number' || currentSession.totalDuration <= 0) {
+                currentSession.totalDuration = Math.max(
+                    0,
+                    Math.floor((currentSession.endTime - (currentSession.startTime || currentSession.endTime)) / 1000)
+                );
+            }
             currentSession.completed = true;
             saveData();
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-            showSummary(); // Refresh summary with completed state
+            clearTimer();
+            showSummary(currentSession); // Refresh summary with completed state
         }
 
         function saveCurrentSession() {
@@ -994,9 +1195,9 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
             initializePlayerSetup();
         }
 
-        window.onload = () => {
+        window.addEventListener('DOMContentLoaded', () => {
             loadData();
-        };
+        });
     </script>
 </body>
 </html>
