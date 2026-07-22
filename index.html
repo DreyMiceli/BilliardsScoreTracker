@@ -176,10 +176,12 @@
 
         function updateLiveTimer() {
             if (!gameStartTime) return;
+            const timerEl = document.getElementById('live-timer');
+            if (!timerEl) return;
             const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
             const m = Math.floor(elapsed / 60);
             const s = elapsed % 60;
-            document.getElementById('live-timer').textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            timerEl.textContent = `${m}:${s.toString().padStart(2, '0')}`;
         }
 
         function stopAndSaveDuration() {
@@ -282,10 +284,10 @@
             };
             sessionsHistory.push(currentSession);
 
-            // Start the live timer immediately so 0:00 is visible as soon as the UI appears
+            // Reset timer state; startTimer runs after the UI renders (#live-timer is created in renderCurrentMatch)
             if (timerInterval) clearInterval(timerInterval);
+            timerInterval = null;
             gameStartTime = null;
-            startTimer();
 
             saveData();
             showCurrentSession();
