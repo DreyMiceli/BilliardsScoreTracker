@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Billiards Tracker</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
@@ -277,8 +279,21 @@
         }
 
         // Setup functions for multiple players
+        function getDefaultSetupPlayers() {
+            // Prefer players from the most recent saved session
+            for (let i = sessionsHistory.length - 1; i >= 0; i--) {
+                const s = sessionsHistory[i];
+                if (!s) continue;
+                const players = Array.isArray(s.players)
+                    ? s.players.map(p => (p || '').trim()).filter(Boolean)
+                    : [s.player1, s.player2].map(p => (p || '').trim()).filter(Boolean);
+                if (players.length >= 2) return players;
+            }
+            return ['Player 1', 'Player 2'];
+        }
+
         function initializePlayerSetup() {
-            setupPlayers = ['Drey', 'Etienne'];
+            setupPlayers = getDefaultSetupPlayers();
             renderPlayerSetup();
         }
 
