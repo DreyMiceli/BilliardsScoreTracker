@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Storage Backup — Billiards Score</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="favicon.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        #json-editor {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 16px;
+            tab-size: 2;
+            line-height: 1.45;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen">
+    <div class="max-w-2xl mx-auto p-3">
+
+        <div class="mb-3">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-billiards text-emerald-500"></i>
+                Storage Backup
+            </h1>
+            <p class="text-zinc-400 text-sm mt-1">
+                Raw editor for the <span class="font-mono text-zinc-300">billiardsSessions</span> local storage key.
+                Use this to back up scores or manually add past games.
+            </p>
+        </div>
+
+        <div class="bg-amber-950/70 border border-amber-700/50 text-amber-100 rounded-2xl p-3 text-xs mb-3 flex gap-2">
+            <i class="fas fa-exclamation-triangle text-amber-400 mt-0.5 flex-shrink-0"></i>
+            <p>
+                Close or refresh the tracker after saving. An open tracker tab can overwrite this page
+                with its in-memory copy. Share sends whatever is currently in the editor, including unsaved edits.
+            </p>
+        </div>
+
+        <div class="bg-zinc-900 rounded-3xl p-4 shadow-2xl mb-3">
+            <div class="flex flex-wrap items-center gap-2 text-xs mb-3">
+                <span id="dirty-badge" class="px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300">Saved</span>
+                <span id="valid-badge" class="px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300">Checking…</span>
+                <span id="count-badge" class="px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300">0 sessions</span>
+                <span id="status-time" class="text-zinc-500 ml-auto">Not loaded</span>
+            </div>
+
+            <label for="json-editor" class="sr-only">billiardsSessions JSON</label>
+            <textarea id="json-editor"
+                      spellcheck="false"
+                      autocomplete="off"
+                      autocapitalize="off"
+                      autocorrect="off"
+                      class="w-full min-h-[50vh] bg-zinc-950 text-zinc-100 rounded-2xl p-3 border border-zinc-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-y"
+                      aria-describedby="validation-panel"></textarea>
+        </div>
+
+        <div id="validation-panel" class="bg-zinc-900 rounded-3xl p-4 mb-3">
+            <div class="flex items-center justify-between gap-2 mb-2">
+                <h2 class="text-sm font-semibold">Validation</h2>
+                <button id="sync-games-btn" type="button" onclick="syncGamesFromPlayed()"
+                        class="hidden text-xs px-3 py-1.5 rounded-xl bg-amber-700 hover:bg-amber-600 transition-all">
+                    <i class="fas fa-link mr-1"></i> Sync games ← playedGames
+                </button>
+            </div>
+            <ul id="validation-list" class="space-y-1.5 text-xs text-zinc-400">
+                <li>Waiting for input…</li>
+            </ul>
+        </div>
+
+        <details class="bg-zinc-900 rounded-3xl p-4 mb-3 text-sm">
+            <summary class="cursor-pointer font-semibold select-none">
+                Schema cheat-sheet
+            </summary>
+            <div class="mt-3 text-xs text-zinc-400 space-y-3">
+                <p>Root must be an array of current-schema sessions. Extra fields are kept. Empty <span class="font-mono text-zinc-300">[]</span> is valid and wipes history.</p>
+                <pre class="bg-zinc-950 rounded-2xl p-3 overflow-x-auto text-[11px] text-zinc-300 leading-relaxed">[{
+  "id": "sess_1710000000000",
+  "date": "2026-08-14",
+  "startTime": 1710000000000,
+  "endTime": 1710003600000,
+  "players": ["Alice", "Bob"],
+  "schedule": [{
+    "matchNum": 1,
+    "player1": "Alice",
+    "player2": "Bob",
+    "breaker": "Alice",
+    "winner": null,
+    "duration": 0,
+    "completed": false
+  }],
+  "playedGames": [{
+    "matchNum": 1,
+    "player1": "Alice",
+    "player2": "Bob",
+    "breaker": "Alice",
+    "winner": "Alice",
+    "duration": 180,
+    "round": 1
+  }],
+  "games": [{
+    "matchNum": 1,
+    "player1": "Alice",
+    "player2": "Bob",
+    "breaker": "Alice",
+    "winner": "Alice",
+    "duration": 180,
+    "round": 1
+  }],
+  "currentMatchIndex": 1,
+  "completed": true,
+  "totalDuration": 180
+}]</pre>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><span class="text-zinc-200">players</span>: 2–8 unique names</li>
+                    <li><span class="text-zinc-200">schedule</span>: one slot per unique pair (<span class="font-mono">n×(n−1)/2</span>)</li>
+                    <li><span class="text-zinc-200">games</span> must match <span class="text-zinc-200">playedGames</span></li>
+                    <li>Legacy <span class="font-mono">player1</span>/<span class="font-mono">player2</span> sessions are rejected</li>
+                    <li>Times are milliseconds; durations are seconds</li>
+                </ul>
+            </div>
+        </details>
+
+        <div class="grid grid-cols-2 gap-2 mb-8">
+            <button type="button" onclick="reloadFromStorage()"
+                    class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-rotate-right mr-1"></i> Reload
+            </button>
+            <button type="button" onclick="formatEditor()"
+                    class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-align-left mr-1"></i> Format
+            </button>
+            <button type="button" onclick="validateNow()"
+                    class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-check mr-1"></i> Validate
+            </button>
+            <button type="button" onclick="saveToStorage()"
+                    class="py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-sm font-semibold transition-all active:scale-95">
+                <i class="fas fa-floppy-disk mr-1"></i> Save
+            </button>
+            <button type="button" onclick="shareBackup()"
+                    class="py-3 bg-blue-600 hover:bg-blue-500 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-share-alt mr-1"></i> Share
+            </button>
+            <button type="button" onclick="downloadBackup()"
+                    class="py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-download mr-1"></i> Download
+            </button>
+            <button type="button" onclick="triggerImport()"
+                    class="col-span-2 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium transition-all active:scale-95">
+                <i class="fas fa-upload mr-1"></i> Import .json
+            </button>
+        </div>
+
+        <input id="import-file" type="file" accept=".json,application/json,text/plain" class="hidden">
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'billiardsSessions';
+        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+        let lastCleanText = '';
+        let lastActionLabel = 'Not loaded';
+        let validateTimer = null;
+        let lastResult = null;
+
+        function $(id) {
+            return document.getElementById(id);
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function editor() {
+            return $('json-editor');
+        }
+
+        function getEditorText() {
+            return editor()?.value ?? '';
+        }
+
+        function setEditorText(text) {
+            const el = editor();
+            if (el) el.value = text;
+        }
+
+        function isDirty() {
+            return getEditorText() !== lastCleanText;
+        }
+
+        function markClean() {
+            lastCleanText = getEditorText();
+            updateStatus();
+        }
+
+        function formatClock(date = new Date()) {
+            return date.toLocaleTimeString();
+        }
+
+        function setLastAction(label) {
+            lastActionLabel = `${label} ${formatClock()}`;
+            updateStatus();
+        }
+
+        function deepEqual(a, b) {
+            if (a === b) return true;
+            if (a == null || b == null) return a === b;
+            if (typeof a !== typeof b) return false;
+            if (Array.isArray(a)) {
+                if (!Array.isArray(b) || a.length !== b.length) return false;
+                return a.every((item, i) => deepEqual(item, b[i]));
+            }
+            if (typeof a === 'object') {
+                const aKeys = Object.keys(a);
+                const bKeys = Object.keys(b);
+                if (aKeys.length !== bKeys.length) return false;
+                return aKeys.every((key) => (
+                    Object.prototype.hasOwnProperty.call(b, key) && deepEqual(a[key], b[key])
+                ));
+            }
+            return false;
+        }
+
+        function isPlainObject(value) {
+            return !!value && typeof value === 'object' && !Array.isArray(value);
+        }
+
+        function isNonEmptyString(value) {
+            return typeof value === 'string' && value.trim() !== '';
+        }
+
+        function isFiniteNumber(value) {
+            return typeof value === 'number' && Number.isFinite(value);
+        }
+
+        function isIntegerGte(value, min) {
+            return Number.isInteger(value) && value >= min;
+        }
+
+        function pushError(errors, path, message) {
+            errors.push({ path, message });
+        }
+
+        function pushWarning(warnings, path, message) {
+            warnings.push({ path, message });
+        }
+
+        function validateNameInPlayers(value, path, field, players, errors) {
+            if (!isNonEmptyString(value)) {
+                pushError(errors, path, `${field} must be a non-empty string`);
+                return false;
+            }
+            if (value !== value.trim()) {
+                pushError(errors, path, `${field} has leading or trailing spaces`);
+                return false;
+            }
+            if (!players.includes(value)) {
+                pushError(errors, path, `${field} "${value}" is not in players`);
+                return false;
+            }
+            return true;
+        }
+
+        function validateScheduleSlot(slot, path, players, errors) {
+            if (!isPlainObject(slot)) {
+                pushError(errors, path, 'must be an object');
+                return;
+            }
+            if (!isFiniteNumber(slot.matchNum)) {
+                pushError(errors, `${path}.matchNum`, 'must be a number');
+            }
+            const p1Ok = validateNameInPlayers(slot.player1, `${path}.player1`, 'player1', players, errors);
+            const p2Ok = validateNameInPlayers(slot.player2, `${path}.player2`, 'player2', players, errors);
+            if (p1Ok && p2Ok && slot.player1 === slot.player2) {
+                pushError(errors, path, 'player1 and player2 must be different');
+            }
+            if (validateNameInPlayers(slot.breaker, `${path}.breaker`, 'breaker', players, errors)) {
+                if (p1Ok && p2Ok && slot.breaker !== slot.player1 && slot.breaker !== slot.player2) {
+                    pushError(errors, `${path}.breaker`, 'must be player1 or player2');
+                }
+            }
+            if (slot.winner !== null) {
+                pushError(errors, `${path}.winner`, 'must be null on schedule slots');
+            }
+            if (!isFiniteNumber(slot.duration)) {
+                pushError(errors, `${path}.duration`, 'must be a number');
+            }
+            if (slot.completed !== false) {
+                pushError(errors, `${path}.completed`, 'must be false on schedule slots');
+            }
+        }
+
+        function validatePlayedGame(game, path, players, errors) {
+            if (!isPlainObject(game)) {
+                pushError(errors, path, 'must be an object');
+                return;
+            }
+            if (!isFiniteNumber(game.matchNum)) {
+                pushError(errors, `${path}.matchNum`, 'must be a number');
+            }
+            const p1Ok = validateNameInPlayers(game.player1, `${path}.player1`, 'player1', players, errors);
+            const p2Ok = validateNameInPlayers(game.player2, `${path}.player2`, 'player2', players, errors);
+            if (p1Ok && p2Ok && game.player1 === game.player2) {
+                pushError(errors, path, 'player1 and player2 must be different');
+            }
+            if (validateNameInPlayers(game.breaker, `${path}.breaker`, 'breaker', players, errors)) {
+                if (p1Ok && p2Ok && game.breaker !== game.player1 && game.breaker !== game.player2) {
+                    pushError(errors, `${path}.breaker`, 'must be player1 or player2');
+                }
+            }
+            if (validateNameInPlayers(game.winner, `${path}.winner`, 'winner', players, errors)) {
+                if (p1Ok && p2Ok && game.winner !== game.player1 && game.winner !== game.player2) {
+                    pushError(errors, `${path}.winner`, 'must be player1 or player2');
+                }
+            }
+            if (!isFiniteNumber(game.duration) || game.duration < 0) {
+                pushError(errors, `${path}.duration`, 'must be a number ≥ 0');
+            }
+            if (!isIntegerGte(game.round, 1)) {
+                pushError(errors, `${path}.round`, 'must be an integer ≥ 1');
+            }
+        }
+
+        function validateSession(session, path, errors, warnings, seenIds) {
+            if (!isPlainObject(session)) {
+                pushError(errors, path, 'must be an object');
+                return { needsSync: false };
+            }
+
+            const hasPlayers = Array.isArray(session.players);
+            const looksLegacy = !hasPlayers && (session.player1 != null || session.player2 != null);
+            if (looksLegacy) {
+                pushError(
+                    errors,
+                    path,
+                    'legacy 2-player session (player1/player2). Convert to the current players/schedule/playedGames shape or remove it'
+                );
+                return { needsSync: false };
+            }
+
+            if (!isNonEmptyString(session.id)) {
+                pushError(errors, `${path}.id`, 'must be a non-empty string');
+            } else if (seenIds.has(session.id)) {
+                pushError(errors, `${path}.id`, `duplicate id "${session.id}"`);
+            } else {
+                seenIds.add(session.id);
+            }
+
+            if (!isNonEmptyString(session.date) || !DATE_RE.test(session.date)) {
+                pushError(errors, `${path}.date`, 'must be YYYY-MM-DD');
+            }
+            if (!isFiniteNumber(session.startTime)) {
+                pushError(errors, `${path}.startTime`, 'must be a number (ms)');
+            }
+            if (session.endTime != null && !isFiniteNumber(session.endTime)) {
+                pushError(errors, `${path}.endTime`, 'must be a number (ms) when present');
+            }
+            if (typeof session.completed !== 'boolean') {
+                pushError(errors, `${path}.completed`, 'must be a boolean');
+            } else if (session.completed && session.endTime == null) {
+                pushWarning(warnings, `${path}.endTime`, 'completed sessions usually include endTime');
+            }
+            if (!isFiniteNumber(session.totalDuration) || session.totalDuration < 0) {
+                pushError(errors, `${path}.totalDuration`, 'must be a number ≥ 0');
+            }
+            if (!isIntegerGte(session.currentMatchIndex, 0)) {
+                pushError(errors, `${path}.currentMatchIndex`, 'must be an integer ≥ 0');
+            }
+
+            const players = [];
+            if (!hasPlayers) {
+                pushError(errors, `${path}.players`, 'must be an array of 2–8 unique names');
+            } else {
+                if (session.players.length < 2 || session.players.length > 8) {
+                    pushError(errors, `${path}.players`, 'must contain 2–8 unique names');
+                }
+                const seenNames = new Set();
+                session.players.forEach((name, i) => {
+                    const namePath = `${path}.players[${i}]`;
+                    if (!isNonEmptyString(name)) {
+                        pushError(errors, namePath, 'must be a non-empty string');
+                        return;
+                    }
+                    if (name !== name.trim()) {
+                        pushError(errors, namePath, 'has leading or trailing spaces');
+                        return;
+                    }
+                    if (seenNames.has(name)) {
+                        pushError(errors, namePath, `duplicate player "${name}"`);
+                        return;
+                    }
+                    seenNames.add(name);
+                    players.push(name);
+                });
+            }
+
+            if (!Array.isArray(session.schedule)) {
+                pushError(errors, `${path}.schedule`, 'must be an array');
+            } else {
+                const expected = players.length >= 2 ? (players.length * (players.length - 1)) / 2 : null;
+                if (expected != null && session.schedule.length !== expected) {
+                    pushError(
+                        errors,
+                        `${path}.schedule`,
+                        `length must be ${expected} for ${players.length} players (one slot per unique pair)`
+                    );
+                }
+                const pairKeys = new Set();
+                session.schedule.forEach((slot, i) => {
+                    validateScheduleSlot(slot, `${path}.schedule[${i}]`, players, errors);
+                    if (isNonEmptyString(slot?.player1) && isNonEmptyString(slot?.player2)) {
+                        const key = [slot.player1, slot.player2].sort().join('\0');
+                        if (pairKeys.has(key)) {
+                            pushWarning(warnings, `${path}.schedule[${i}]`, 'duplicate pairing in schedule');
+                        } else {
+                            pairKeys.add(key);
+                        }
+                    }
+                });
+            }
+
+            if (!Array.isArray(session.playedGames)) {
+                pushError(errors, `${path}.playedGames`, 'must be an array');
+            } else {
+                session.playedGames.forEach((game, i) => {
+                    validatePlayedGame(game, `${path}.playedGames[${i}]`, players, errors);
+                });
+                if (session.completed === true && session.playedGames.length === 0) {
+                    pushWarning(warnings, `${path}.playedGames`, 'completed session has no recorded games');
+                }
+                if (Number.isInteger(session.currentMatchIndex) && session.currentMatchIndex !== session.playedGames.length) {
+                    pushWarning(
+                        warnings,
+                        `${path}.currentMatchIndex`,
+                        `usually equals playedGames.length (${session.playedGames.length})`
+                    );
+                }
+            }
+
+            let needsSync = false;
+            if (!Array.isArray(session.games)) {
+                pushError(errors, `${path}.games`, 'must be an array equal to playedGames');
+            } else if (Array.isArray(session.playedGames) && !deepEqual(session.games, session.playedGames)) {
+                needsSync = true;
+                pushError(errors, `${path}.games`, 'must match playedGames (use Sync to copy playedGames → games)');
+            }
+
+            return { needsSync };
+        }
+
+        function validateSessionsJson(text) {
+            const errors = [];
+            const warnings = [];
+            let parsed = null;
+            let needsSync = false;
+
+            try {
+                parsed = JSON.parse(text);
+            } catch (e) {
+                const detail = e && e.message ? e.message : 'Invalid JSON';
+                pushError(errors, '(root)', `JSON parse error: ${detail}`);
+                return { ok: false, parsed: null, errors, warnings, needsSync };
+            }
+
+            if (!Array.isArray(parsed)) {
+                pushError(errors, '(root)', 'must be a JSON array of sessions');
+                return { ok: false, parsed, errors, warnings, needsSync };
+            }
+
+            const seenIds = new Set();
+            let unfinished = 0;
+            parsed.forEach((session, i) => {
+                const result = validateSession(session, `[${i}]`, errors, warnings, seenIds);
+                if (result.needsSync) needsSync = true;
+                if (session && session.completed === false) unfinished += 1;
+            });
+
+            if (unfinished > 1) {
+                pushWarning(
+                    warnings,
+                    '(root)',
+                    `${unfinished} unfinished sessions — the tracker only resumes the first`
+                );
+            }
+
+            return { ok: errors.length === 0, parsed, errors, warnings, needsSync };
+        }
+
+        function renderValidation(result) {
+            lastResult = result;
+            const list = $('validation-list');
+            const syncBtn = $('sync-games-btn');
+            if (!list) return;
+
+            if (syncBtn) syncBtn.classList.toggle('hidden', !result.needsSync);
+
+            const items = [];
+            if (result.ok && result.warnings.length === 0) {
+                const count = Array.isArray(result.parsed) ? result.parsed.length : 0;
+                items.push(`<li class="text-emerald-400">Valid current-schema array (${count} session${count === 1 ? '' : 's'}).</li>`);
+            }
+            result.errors.forEach((item) => {
+                items.push(
+                    `<li class="text-red-400"><span class="font-mono text-red-300">${escapeHtml(item.path)}</span> — ${escapeHtml(item.message)}</li>`
+                );
+            });
+            result.warnings.forEach((item) => {
+                items.push(
+                    `<li class="text-amber-300"><span class="font-mono text-amber-200">${escapeHtml(item.path)}</span> — ${escapeHtml(item.message)}</li>`
+                );
+            });
+            list.innerHTML = items.join('') || '<li class="text-zinc-400">Waiting for input…</li>';
+        }
+
+        function updateStatus() {
+            const dirtyBadge = $('dirty-badge');
+            const validBadge = $('valid-badge');
+            const countBadge = $('count-badge');
+            const statusTime = $('status-time');
+            const dirty = isDirty();
+
+            if (dirtyBadge) {
+                dirtyBadge.textContent = dirty ? 'Unsaved' : 'Saved';
+                dirtyBadge.className = dirty
+                    ? 'px-2.5 py-1 rounded-full bg-amber-900 text-amber-100'
+                    : 'px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300';
+            }
+
+            const result = lastResult;
+            if (validBadge) {
+                if (!result) {
+                    validBadge.textContent = 'Checking…';
+                    validBadge.className = 'px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300';
+                } else if (result.ok) {
+                    validBadge.textContent = result.warnings.length ? 'Valid (warnings)' : 'Valid';
+                    validBadge.className = result.warnings.length
+                        ? 'px-2.5 py-1 rounded-full bg-amber-900 text-amber-100'
+                        : 'px-2.5 py-1 rounded-full bg-emerald-900 text-emerald-100';
+                } else {
+                    validBadge.textContent = 'Invalid';
+                    validBadge.className = 'px-2.5 py-1 rounded-full bg-red-950 text-red-300';
+                }
+            }
+
+            if (countBadge) {
+                if (result && Array.isArray(result.parsed)) {
+                    const n = result.parsed.length;
+                    countBadge.textContent = `${n} session${n === 1 ? '' : 's'}`;
+                } else {
+                    countBadge.textContent = '— sessions';
+                }
+            }
+
+            if (statusTime) statusTime.textContent = lastActionLabel;
+        }
+
+        function runValidation() {
+            const result = validateSessionsJson(getEditorText());
+            renderValidation(result);
+            updateStatus();
+            return result;
+        }
+
+        function scheduleValidation() {
+            updateStatus();
+            if (validateTimer) clearTimeout(validateTimer);
+            validateTimer = setTimeout(runValidation, 300);
+        }
+
+        function validateNow() {
+            if (validateTimer) {
+                clearTimeout(validateTimer);
+                validateTimer = null;
+            }
+            return runValidation();
+        }
+
+        function loadFromStorage() {
+            let raw = null;
+            try {
+                raw = localStorage.getItem(STORAGE_KEY);
+            } catch (e) {
+                alert('Cannot read local storage in this browser.');
+                setEditorText('[]');
+                markClean();
+                setLastAction('Load failed');
+                runValidation();
+                return;
+            }
+
+            if (raw == null || raw === '') {
+                setEditorText('[]');
+                markClean();
+                setLastAction('Loaded empty store');
+                runValidation();
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(raw);
+                setEditorText(JSON.stringify(parsed, null, 2));
+                markClean();
+                setLastAction('Loaded');
+            } catch (e) {
+                setEditorText(raw);
+                markClean();
+                setLastAction('Loaded corrupt JSON');
+            }
+            runValidation();
+        }
+
+        function reloadFromStorage() {
+            if (isDirty() && !confirm('Discard unsaved edits and reload from local storage?')) return;
+            loadFromStorage();
+        }
+
+        function formatEditor() {
+            try {
+                const parsed = JSON.parse(getEditorText());
+                setEditorText(JSON.stringify(parsed, null, 2));
+                setLastAction('Formatted');
+                runValidation();
+            } catch (e) {
+                const detail = e && e.message ? e.message : 'Invalid JSON';
+                alert(`Cannot format until the editor is valid JSON.\n\n${detail}`);
+                runValidation();
+            }
+        }
+
+        function saveToStorage() {
+            const result = validateNow();
+            if (!result.ok) {
+                alert('Fix validation errors before saving. Nothing was written.');
+                return;
+            }
+
+            const count = Array.isArray(result.parsed) ? result.parsed.length : 0;
+            const message = count === 0
+                ? 'This will delete all sessions. Overwrite existing sessions in local storage?'
+                : 'Overwrite existing sessions in local storage?';
+            if (!confirm(message)) return;
+
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(result.parsed));
+            } catch (e) {
+                const detail = e && e.message ? e.message : 'Unknown error';
+                alert(`Could not save to local storage.\n\n${detail}\n\nIf the backup is large, the browser quota may be full.`);
+                return;
+            }
+
+            markClean();
+            setLastAction('Saved');
+            runValidation();
+        }
+
+        function fallbackShareAlert(text) {
+            if (text.length > 4000) {
+                alert('Could not share or copy this backup (too large). Use Download instead.');
+                return;
+            }
+            alert('Backup JSON:\n\n' + text);
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('✅ Sessions JSON copied to clipboard!');
+                }).catch(() => {
+                    fallbackShareAlert(text);
+                });
+            } else {
+                fallbackShareAlert(text);
+            }
+        }
+
+        function shareBackup() {
+            const text = getEditorText();
+            if (!text.trim()) {
+                alert('Nothing to share.');
+                return;
+            }
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Billiards Sessions Backup',
+                    text,
+                }).catch(() => copyToClipboard(text));
+            } else {
+                copyToClipboard(text);
+            }
+        }
+
+        function downloadBackup() {
+            const text = getEditorText();
+            const date = new Date().toISOString().split('T')[0];
+            const blob = new Blob([text], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `billiardsSessions-${date}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setLastAction('Downloaded');
+        }
+
+        function triggerImport() {
+            if (isDirty() && !confirm('Replace unsaved editor contents with the imported file?')) return;
+            const input = $('import-file');
+            if (!input) return;
+            input.value = '';
+            input.click();
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const text = String(reader.result ?? '');
+                try {
+                    const parsed = JSON.parse(text);
+                    setEditorText(JSON.stringify(parsed, null, 2));
+                } catch (e) {
+                    setEditorText(text);
+                }
+                setLastAction('Imported (not saved)');
+                runValidation();
+            };
+            reader.onerror = () => alert('Could not read that file.');
+            reader.readAsText(file);
+        }
+
+        function syncGamesFromPlayed() {
+            let parsed;
+            try {
+                parsed = JSON.parse(getEditorText());
+            } catch (e) {
+                alert('Cannot sync until the editor is valid JSON.');
+                return;
+            }
+            if (!Array.isArray(parsed)) {
+                alert('Root value must be an array to sync games.');
+                return;
+            }
+
+            let changed = 0;
+            parsed.forEach((session) => {
+                if (isPlainObject(session) && Array.isArray(session.playedGames)) {
+                    session.games = JSON.parse(JSON.stringify(session.playedGames));
+                    changed += 1;
+                }
+            });
+
+            if (!changed) {
+                alert('No playedGames arrays found to copy.');
+                return;
+            }
+
+            setEditorText(JSON.stringify(parsed, null, 2));
+            setLastAction('Synced games');
+            runValidation();
+        }
+
+        window.addEventListener('beforeunload', (event) => {
+            if (!isDirty()) return;
+            event.preventDefault();
+            event.returnValue = '';
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const textarea = editor();
+            textarea?.addEventListener('input', scheduleValidation);
+            $('import-file')?.addEventListener('change', handleImportFile);
+            loadFromStorage();
+        });
+    </script>
+</body>
+</html>

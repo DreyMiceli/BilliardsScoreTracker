@@ -54,6 +54,7 @@ Sessions resume automatically if you leave mid-tournament — unfinished play is
 - Safe load/save with corrupt-data recovery
 - Legacy 2-player session format still supported
 - Null-safe timer and DOM handling for stable mobile use
+- Raw backup editor at `/Storage.html` — view, validate, save, share, download, or import the `billiardsSessions` JSON
 
 ### UI
 - Dark, mobile-first layout (Tailwind CSS)
@@ -100,6 +101,7 @@ npx wrangler deploy
 ```
 BilliardsScoreTracker/
 ├── index.html      # App UI + logic
+├── Storage.html    # Raw localStorage backup / JSON editor
 ├── favicon.svg     # App icon
 ├── wrangler.jsonc  # Cloudflare Workers static deploy config
 └── README.md
