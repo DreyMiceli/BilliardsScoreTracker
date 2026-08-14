@@ -1,12 +1,12 @@
 ﻿# Billiards Score Tracker
 
-A lightweight, mobile-friendly web app for tracking multi-player billiards (pool) round-robin tournaments. Record match winners, breakers, and game times as you play — then review standings, history, and shareable summaries.
+A lightweight, mobile-friendly web app for tracking multi-player billiards (pool) round-robin tournaments. Record match winners, breakers, and game times as you play — then review standings, session history, all-time pair stats, and shareable summaries.
 
 **Live:** https://billiards.azureweb.workers.dev/
 
 ## What it does
 
-Set up 2–8 players, start a session, and the app builds a full round-robin schedule (every player vs every other player). As each match finishes you tap the winner; the app advances to the next pairing, keeps live scores, and tracks how long each game took. When you’re done, end the session for a tournament summary you can share or revisit later from history.
+Set up 2–8 players, start a session, and the app builds a full round-robin schedule (every player vs every other player). As each match finishes you tap the winner; the app advances to the next pairing, keeps live scores, and tracks how long each game took. When you’re done, end the session for a tournament summary you can share or revisit later from Stats.
 
 Sessions resume automatically if you leave mid-tournament — unfinished play is restored from local storage on the next visit.
 
@@ -43,11 +43,13 @@ Sessions resume automatically if you leave mid-tournament — unfinished play is
 - Match log with breaker `(B)` and winner `(W)` tags
 - **Share** via the device share sheet or clipboard copy
 
-### History
-- List of completed sessions with date, players, wins, game count, and timing stats
+### Stats
+- **Session History** lists completed sessions with date, players, wins, game count, and timing stats
 - Open any past session for its full summary
 - Share or delete individual history entries
 - Viewing history does **not** overwrite an active unfinished session
+- **All Time Stats** aggregates completed sessions by player pair
+- Each pair shows head-to-head wins, win %, games played, average duration, breaker win rate, current streak, sessions together, and last played date
 
 ### Data & reliability
 - All data stored in **browser `localStorage`** (no account required)
@@ -58,18 +60,18 @@ Sessions resume automatically if you leave mid-tournament — unfinished play is
 
 ### UI
 - Dark, mobile-first layout (Tailwind CSS)
-- Distinct player colors across scores, buttons, and history
+- Distinct player colors across scores, buttons, and stats
 - Custom 8-ball favicon
 
 ## How to use
 
 1. Open the app and confirm or edit player names on the start screen.
 2. Optionally add more players (up to 8).
-3. Tap **Start Round-Robin Tournament**.
+3. Tap **Start Session**.
 4. For each match: note the breaker, play, then tap the winner.
 5. Review scores and the games list as you go; edit past results if needed.
 6. Tap **End Session** → review the summary → **End Session** again to save, or **Resume** to keep playing.
-7. Use the **History** tab to revisit, share, or delete completed tournaments.
+7. Use the **Stats** tab for session history or all-time head-to-head pair stats.
 
 ## Tech stack
 

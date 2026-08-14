@@ -9,7 +9,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <style>
+        html, body {
+            height: 100%;
+            height: 100dvh;
+        }
         body { font-family: 'Segoe UI', system-ui, sans-serif; }
+        .screen-hidden { display: none !important; }
         .game-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
         .breaker-active {
             background-color: rgb(63 63 70) !important;
@@ -23,11 +28,11 @@
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen">
-    <div class="max-w-lg mx-auto p-3">
+<body class="bg-zinc-950 text-zinc-100 h-full overflow-hidden">
+    <div class="max-w-lg mx-auto p-3 h-full min-h-0 flex flex-col">
 
         <!-- Header -->
-        <div class="mb-3 flex items-center justify-between gap-3">
+        <div class="mb-3 flex items-center justify-between gap-3 flex-shrink-0">
             <h1 class="text-2xl font-bold flex items-center gap-2 flex-shrink-0">
                 <i class="fas fa-billiards text-emerald-500"></i>
                 Billiards Score
@@ -37,18 +42,17 @@
                 <button id="session-tab-btn" onclick="showTab('session')" class="px-4 py-1.5 rounded-3xl bg-emerald-600 font-medium transition-all">
                     Session
                 </button>
-                <button id="history-tab-btn" onclick="showTab('history')" class="px-4 py-1.5 rounded-3xl bg-zinc-800 font-medium transition-all">
-                    History
+                <button id="stats-tab-btn" onclick="showTab('stats')" class="px-4 py-1.5 rounded-3xl bg-zinc-800 font-medium transition-all">
+                    Stats
                 </button>
             </div>
         </div>
 
-        <div id="session-tab">
+        <div id="session-tab" class="flex-1 min-h-0 flex flex-col">
 
             <!-- Welcome Screen -->
-            <div id="welcome-screen" class="bg-zinc-900 rounded-3xl p-6 text-center hidden">
-                <i class="fas fa-billiards text-6xl text-emerald-500/20 mb-4"></i>
-                <h2 class="text-xl font-bold mb-4">Ready to play a tournament?</h2>
+            <div id="welcome-screen" class="bg-zinc-900 rounded-3xl p-6 text-center screen-hidden flex-1 min-h-0 flex flex-col justify-start overflow-y-auto">
+                <h2 class="text-xl font-bold mb-4">Ready to play?</h2>
                 <p class="text-zinc-400 text-sm mb-6">Add 2+ players for round-robin</p>
                 <div id="player-setup-list" class="space-y-3 mb-6"></div>
                 <button onclick="addPlayerToSetup()" 
@@ -57,12 +61,12 @@
                 </button>
                 <button onclick="startNewSession()" 
                         class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-base font-semibold rounded-3xl flex items-center justify-center gap-2 transition-all active:scale-95">
-                    <i class="fas fa-play"></i> Start Round-Robin Tournament
+                    <i class="fas fa-play"></i> Start Session
                 </button>
             </div>
 
             <!-- Current Session -->
-            <div id="current-session" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
+            <div id="current-session" class="screen-hidden flex-1 min-h-0 overflow-y-auto bg-zinc-900 rounded-3xl p-4 shadow-2xl">
                 <!-- Current Match controls (moved to top) -->
                 <div class="bg-zinc-800/70 rounded-2xl p-4 mb-6">
                     <div class="flex justify-center items-center mb-4">
@@ -107,27 +111,40 @@
             </div>
         </div>
 
-        <div id="history-tab" class="hidden bg-zinc-900 rounded-3xl p-4 shadow-2xl">
-            <div class="flex items-center justify-between mb-4">
+        <div id="stats-tab" class="screen-hidden flex-1 min-h-0 flex flex-col bg-zinc-900 rounded-3xl p-4 shadow-2xl">
+            <div class="flex items-center justify-between mb-4 flex-shrink-0">
                 <div>
-                    <h2 class="text-lg font-bold">Session History</h2>
-                    <p class="text-zinc-500 text-xs">Review completed past sessions.</p>
+                    <h2 class="text-lg font-bold">Stats</h2>
+                    <p class="text-zinc-500 text-xs">Session history and all-time head-to-head.</p>
                 </div>
                 <button onclick="showTab('session')" class="text-zinc-400 bg-zinc-800 px-2 py-1 rounded-lg hover:bg-zinc-700 text-sm">Back</button>
             </div>
-            <div id="history-list" class="space-y-2 max-h-[70vh] overflow-y-auto"></div>
+            <div class="bg-zinc-800/70 rounded-2xl p-1 flex gap-1 mb-4 text-sm flex-shrink-0">
+                <button id="stats-history-btn" onclick="showStatsSubTab('history')" class="flex-1 px-3 py-1.5 rounded-xl bg-emerald-600 font-medium transition-all">
+                    Session History
+                </button>
+                <button id="stats-alltime-btn" onclick="showStatsSubTab('alltime')" class="flex-1 px-3 py-1.5 rounded-xl bg-zinc-800 font-medium transition-all">
+                    All Time Stats
+                </button>
+            </div>
+            <div id="stats-history-panel" class="flex-1 min-h-0 flex flex-col">
+                <div id="history-list" class="space-y-2 flex-1 min-h-0 overflow-y-auto"></div>
+            </div>
+            <div id="stats-alltime-panel" class="screen-hidden flex-1 min-h-0 flex flex-col">
+                <div id="alltime-stats" class="space-y-3 flex-1 min-h-0 overflow-y-auto"></div>
+            </div>
         </div>
     </div>
 
     <!-- Summary Modal -->
-    <div id="summary-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="bg-zinc-900 rounded-3xl w-full max-w-md mx-4 p-5 relative">
+    <div id="summary-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3">
+        <div class="bg-zinc-900 rounded-3xl w-full max-w-md p-5 relative max-h-full flex flex-col">
             <button onclick="hideSummary()" aria-label="Close summary" class="absolute top-4 right-4 text-zinc-500 hover:text-white text-lg">
                 <i class="fas fa-times"></i>
             </button>
-            <h2 class="text-2xl font-bold text-center mb-5">Session Summary</h2>
-            <div id="summary-content" class="space-y-5"></div>
-            <div class="flex gap-2 mt-6">
+            <h2 class="text-2xl font-bold text-center mb-5 flex-shrink-0">Session Summary</h2>
+            <div id="summary-content" class="space-y-5 overflow-y-auto min-h-0 flex-1"></div>
+            <div class="flex gap-2 mt-6 flex-shrink-0">
                 <button id="resume-summary-btn" onclick="hideSummary()" class="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-xl font-medium text-sm">Resume</button>
                 <button id="end-session-btn" onclick="confirmCloseSession()" class="flex-1 py-2 bg-red-600 hover:bg-red-500 rounded-xl font-medium text-sm">End Session</button>
                 <button id="share-summary-btn" onclick="shareSession()" class="hidden flex-1 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl font-medium flex items-center justify-center gap-1 text-sm">
@@ -146,6 +163,7 @@
         let gameStartTime = null;
         let timerInterval = null;
         let setupPlayers = [];
+        let statsSubTab = 'history';
         const PLAYER_COLORS = ['emerald', 'amber', 'sky', 'violet', 'rose', 'lime', 'cyan', 'fuchsia'];
         const COLOR_TEXT = {
             emerald: 'text-emerald-400', amber: 'text-amber-400', sky: 'text-sky-400', violet: 'text-violet-400',
@@ -185,6 +203,17 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function formatDuration(seconds) {
+            const s = Math.max(0, Math.floor(Number(seconds) || 0));
+            const m = Math.floor(s / 60);
+            return `${m}:${(s % 60).toString().padStart(2, '0')}`;
+        }
+
+        function formatPercent(part, whole) {
+            if (!whole) return '—';
+            return `${Math.round((part / whole) * 100)}%`;
+        }
+
         function clearTimer() {
             if (timerInterval) {
                 clearInterval(timerInterval);
@@ -194,8 +223,8 @@
         }
 
         function showWelcomeScreen() {
-            $('current-session')?.classList.add('hidden');
-            $('welcome-screen')?.classList.remove('hidden');
+            $('current-session')?.classList.add('screen-hidden');
+            $('welcome-screen')?.classList.remove('screen-hidden');
             initializePlayerSetup();
         }
 
@@ -399,8 +428,8 @@
         }
 
         function showCurrentSession() {
-            $('welcome-screen')?.classList.add('hidden');
-            $('current-session')?.classList.remove('hidden');
+            $('welcome-screen')?.classList.add('screen-hidden');
+            $('current-session')?.classList.remove('screen-hidden');
             showTab('session');
             renderCurrentSession();
         }
@@ -735,22 +764,256 @@
 
         function showTab(tab) {
             const sessionTab = $('session-tab');
-            const historyTab = $('history-tab');
+            const statsTab = $('stats-tab');
             const sessionBtn = $('session-tab-btn');
-            const historyBtn = $('history-tab-btn');
-            if (!sessionTab || !historyTab || !sessionBtn || !historyBtn) return;
+            const statsBtn = $('stats-tab-btn');
+            if (!sessionTab || !statsTab || !sessionBtn || !statsBtn) return;
             const isSession = tab === 'session';
 
-            sessionTab.classList.toggle('hidden', !isSession);
-            historyTab.classList.toggle('hidden', isSession);
+            sessionTab.classList.toggle('screen-hidden', !isSession);
+            statsTab.classList.toggle('screen-hidden', isSession);
             sessionBtn.classList.toggle('bg-emerald-600', isSession);
             sessionBtn.classList.toggle('bg-zinc-800', !isSession);
-            historyBtn.classList.toggle('bg-emerald-600', !isSession);
-            historyBtn.classList.toggle('bg-zinc-800', isSession);
+            statsBtn.classList.toggle('bg-emerald-600', !isSession);
+            statsBtn.classList.toggle('bg-zinc-800', isSession);
 
             if (!isSession) {
-                populateHistory();
+                showStatsSubTab('history');
             }
+        }
+
+        function showStatsSubTab(subTab) {
+            statsSubTab = subTab === 'alltime' ? 'alltime' : 'history';
+            const historyPanel = $('stats-history-panel');
+            const alltimePanel = $('stats-alltime-panel');
+            const historyBtn = $('stats-history-btn');
+            const alltimeBtn = $('stats-alltime-btn');
+            if (!historyPanel || !alltimePanel || !historyBtn || !alltimeBtn) return;
+
+            const isHistory = statsSubTab === 'history';
+            historyPanel.classList.toggle('screen-hidden', !isHistory);
+            alltimePanel.classList.toggle('screen-hidden', isHistory);
+            historyBtn.classList.toggle('bg-emerald-600', isHistory);
+            historyBtn.classList.toggle('bg-zinc-800', !isHistory);
+            alltimeBtn.classList.toggle('bg-emerald-600', !isHistory);
+            alltimeBtn.classList.toggle('bg-zinc-800', isHistory);
+
+            if (isHistory) populateHistory();
+            else populateAllTimeStats();
+        }
+
+        function getSessionPlayers(session) {
+            if (!session) return [];
+            if (Array.isArray(session.players)) {
+                return session.players.map(p => (p || '').trim()).filter(Boolean);
+            }
+            return [session.player1, session.player2].map(p => (p || '').trim()).filter(Boolean);
+        }
+
+        function getSessionGames(session) {
+            if (!session) return [];
+            if (Array.isArray(session.playedGames) && session.playedGames.length) return session.playedGames;
+            if (Array.isArray(session.games) && session.games.length) return session.games;
+            if (Array.isArray(session.matches)) {
+                return session.matches.filter(m => m && (m.completed || m.winner || m.winnerName));
+            }
+            return [];
+        }
+
+        function resolveGamePlayers(game, session) {
+            const players = getSessionPlayers(session);
+            const resolve = (value, fallbackIndex) => {
+                if (typeof value === 'string' && value.trim()) return value.trim();
+                if (value === 1 || value === 2) return players[value - 1] || '';
+                return players[fallbackIndex] || '';
+            };
+            return {
+                player1: resolve(game?.player1, 0),
+                player2: resolve(game?.player2, 1)
+            };
+        }
+
+        function resolveGameWinner(game, session) {
+            if (!game) return '';
+            if (typeof game.winner === 'string' && game.winner.trim()) return game.winner.trim();
+            if (typeof game.winnerName === 'string' && game.winnerName.trim()) return game.winnerName.trim();
+            const { player1, player2 } = resolveGamePlayers(game, session);
+            if (game.winner === 1) return player1;
+            if (game.winner === 2) return player2;
+            return '';
+        }
+
+        function resolveGameBreaker(game, session) {
+            if (!game) return '';
+            if (typeof game.breaker === 'string' && game.breaker.trim()) return game.breaker.trim();
+            const { player1, player2 } = resolveGamePlayers(game, session);
+            if (game.breaker === 1) return player1;
+            if (game.breaker === 2) return player2;
+            return '';
+        }
+
+        function pairKey(a, b) {
+            return [a, b].sort((x, y) => x.localeCompare(y)).join('\u0000');
+        }
+
+        function computeAllTimePairStats() {
+            const pairs = new Map();
+            const completed = sessionsHistory.filter(s => s && s.completed);
+
+            completed.forEach(session => {
+                const games = getSessionGames(session);
+                const sessionPairs = new Set();
+
+                games.forEach(game => {
+                    const { player1, player2 } = resolveGamePlayers(game, session);
+                    const winner = resolveGameWinner(game, session);
+                    if (!player1 || !player2 || player1 === player2 || !winner) return;
+
+                    const key = pairKey(player1, player2);
+                    if (!pairs.has(key)) {
+                        const [left, right] = [player1, player2].sort((a, b) => a.localeCompare(b));
+                        pairs.set(key, {
+                            playerA: left,
+                            playerB: right,
+                            winsA: 0,
+                            winsB: 0,
+                            games: 0,
+                            durationTotal: 0,
+                            durationCount: 0,
+                            breakWinsA: 0,
+                            breakGamesA: 0,
+                            breakWinsB: 0,
+                            breakGamesB: 0,
+                            currentStreakPlayer: null,
+                            currentStreak: 0,
+                            sessions: new Set(),
+                            lastPlayed: 0
+                        });
+                    }
+
+                    const pair = pairs.get(key);
+                    pair.games += 1;
+                    if (winner === pair.playerA) pair.winsA += 1;
+                    else if (winner === pair.playerB) pair.winsB += 1;
+
+                    const duration = Number(game.duration);
+                    if (Number.isFinite(duration) && duration > 0) {
+                        pair.durationTotal += duration;
+                        pair.durationCount += 1;
+                    }
+
+                    const breaker = resolveGameBreaker(game, session);
+                    if (breaker === pair.playerA) {
+                        pair.breakGamesA += 1;
+                        if (winner === pair.playerA) pair.breakWinsA += 1;
+                    } else if (breaker === pair.playerB) {
+                        pair.breakGamesB += 1;
+                        if (winner === pair.playerB) pair.breakWinsB += 1;
+                    }
+
+                    if (winner === pair.currentStreakPlayer) {
+                        pair.currentStreak += 1;
+                    } else {
+                        pair.currentStreakPlayer = winner;
+                        pair.currentStreak = 1;
+                    }
+
+                    sessionPairs.add(key);
+                    const playedAt = Number(session.endTime || session.startTime || 0);
+                    if (playedAt > pair.lastPlayed) pair.lastPlayed = playedAt;
+                });
+
+                sessionPairs.forEach(key => pairs.get(key)?.sessions.add(session.id));
+            });
+
+            return [...pairs.values()]
+                .map(pair => ({
+                    ...pair,
+                    sessionCount: pair.sessions.size
+                }))
+                .sort((a, b) => b.games - a.games || a.playerA.localeCompare(b.playerA));
+        }
+
+        function populateAllTimeStats() {
+            const container = $('alltime-stats');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const pairs = computeAllTimePairStats();
+            if (pairs.length === 0) {
+                container.innerHTML = `<div class="text-center py-20 text-zinc-500">No completed games yet.<br><br>Finish a session to see all-time head-to-head stats.</div>`;
+                return;
+            }
+
+            const totals = pairs.reduce((acc, pair) => {
+                acc.games += pair.games;
+                acc.duration += pair.durationTotal;
+                return acc;
+            }, { games: 0, duration: 0 });
+
+            const overview = document.createElement('div');
+            overview.className = 'grid grid-cols-3 gap-2 text-center bg-zinc-800/70 rounded-2xl p-3';
+            overview.innerHTML = `
+                <div>
+                    <div class="text-2xl font-bold">${pairs.length}</div>
+                    <div class="text-[10px] text-zinc-400 uppercase tracking-wide">Pairs</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold">${totals.games}</div>
+                    <div class="text-[10px] text-zinc-400 uppercase tracking-wide">Games</div>
+                </div>
+                <div>
+                    <div class="text-2xl font-bold text-emerald-400">${formatDuration(totals.duration)}</div>
+                    <div class="text-[10px] text-zinc-400 uppercase tracking-wide">Play Time</div>
+                </div>
+            `;
+            container.appendChild(overview);
+
+            pairs.forEach(pair => {
+                const colorA = getPlayerColor(pair.playerA, { players: [pair.playerA, pair.playerB] });
+                const colorB = getPlayerColor(pair.playerB, { players: [pair.playerA, pair.playerB] });
+                const lastPlayed = pair.lastPlayed
+                    ? new Date(pair.lastPlayed).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : '—';
+                const streakLabel = pair.currentStreakPlayer
+                    ? `${pair.currentStreakPlayer} ×${pair.currentStreak}`
+                    : '—';
+
+                const card = document.createElement('div');
+                card.className = 'bg-zinc-800 rounded-2xl p-4';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div class="flex-1 text-right">
+                            <div class="text-xs ${COLOR_TEXT[colorA] || 'text-emerald-400'} font-semibold">${escapeHtml(pair.playerA)}</div>
+                            <div class="text-3xl font-bold">${pair.winsA}</div>
+                            <div class="text-[10px] text-zinc-500">${formatPercent(pair.winsA, pair.games)} win</div>
+                        </div>
+                        <div class="text-center px-2">
+                            <div class="text-[10px] uppercase tracking-widest text-zinc-500">vs</div>
+                            <div class="text-xs text-zinc-400 mt-1">${pair.games} games</div>
+                        </div>
+                        <div class="flex-1 text-left">
+                            <div class="text-xs ${COLOR_TEXT[colorB] || 'text-amber-400'} font-semibold">${escapeHtml(pair.playerB)}</div>
+                            <div class="text-3xl font-bold">${pair.winsB}</div>
+                            <div class="text-[10px] text-zinc-500">${formatPercent(pair.winsB, pair.games)} win</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] text-zinc-400">
+                        <div class="bg-zinc-900/70 rounded-xl px-3 py-2">Avg game <span class="text-zinc-200 font-mono">${pair.durationCount ? formatDuration(Math.floor(pair.durationTotal / pair.durationCount)) : '—'}</span></div>
+                        <div class="bg-zinc-900/70 rounded-xl px-3 py-2">Sessions <span class="text-zinc-200">${pair.sessionCount}</span></div>
+                        <div class="bg-zinc-900/70 rounded-xl px-3 py-2">Streak <span class="text-zinc-200">${escapeHtml(streakLabel)}</span></div>
+                        <div class="bg-zinc-900/70 rounded-xl px-3 py-2">Last played <span class="text-zinc-200">${lastPlayed}</span></div>
+                        <div class="bg-zinc-900/70 rounded-xl px-3 py-2 col-span-2">
+                            Breaker win rate
+                            <div class="mt-1 flex justify-between gap-3 text-zinc-200">
+                                <span>${escapeHtml(pair.playerA)} ${formatPercent(pair.breakWinsA, pair.breakGamesA)}</span>
+                                <span>${escapeHtml(pair.playerB)} ${formatPercent(pair.breakWinsB, pair.breakGamesB)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
         }
 
         function populateHistory() {
@@ -1163,7 +1426,7 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
                 // - If we only viewed history while an unfinished session is active, keep it.
                 // - If the active session itself was completed, tear down to welcome.
                 if (historyOnly && currentSession && !currentSession.completed) {
-                    showTab('session');
+                    showTab('stats');
                     return;
                 }
                 if (currentSession && currentSession.completed) {
@@ -1174,6 +1437,8 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
                 // Viewed a history item with no active unfinished session
                 if (!currentSession || (viewed && currentSession.id === viewed.id && currentSession.completed)) {
                     teardownToWelcome();
+                    showTab('stats');
+                    return;
                 }
             }
             showTab('session');
@@ -1201,8 +1466,8 @@ Played on ${new Date(session.startTime || Date.now()).toLocaleDateString()}`;
         }
 
         function showHistory() {
-            populateHistory();
-            showTab('history');
+            statsSubTab = 'history';
+            showTab('stats');
         }
 
         // Ensure old references are cleaned
