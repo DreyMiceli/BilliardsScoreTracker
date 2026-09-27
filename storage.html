@@ -99,7 +99,9 @@
     "breaker": "Alice",
     "winner": "Alice",
     "duration": 180,
-    "round": 1
+    "round": 1,
+    "redPlayer": "Alice",
+    "yellowPlayer": "Bob"
   }],
   "games": [{
     "matchNum": 1,
@@ -108,7 +110,9 @@
     "breaker": "Alice",
     "winner": "Alice",
     "duration": 180,
-    "round": 1
+    "round": 1,
+    "redPlayer": "Alice",
+    "yellowPlayer": "Bob"
   }],
   "currentMatchIndex": 1,
   "completed": true,
@@ -118,6 +122,7 @@
                     <li><span class="text-zinc-200">players</span>: 2–8 unique names</li>
                     <li><span class="text-zinc-200">schedule</span>: one slot per unique pair (<span class="font-mono">n×(n−1)/2</span>)</li>
                     <li><span class="text-zinc-200">games</span> must match <span class="text-zinc-200">playedGames</span></li>
+                    <li><span class="text-zinc-200">redPlayer</span>/<span class="text-zinc-200">yellowPlayer</span> optional; if either is set both required, each must be that game’s player1 or player2, and they must differ</li>
                     <li>Legacy <span class="font-mono">player1</span>/<span class="font-mono">player2</span> sessions are rejected</li>
                     <li>Times are milliseconds; durations are seconds</li>
                 </ul>
@@ -327,6 +332,25 @@
             }
             if (!isIntegerGte(game.round, 1)) {
                 pushError(errors, `${path}.round`, 'must be an integer ≥ 1');
+            }
+            const hasRed = game.redPlayer != null;
+            const hasYellow = game.yellowPlayer != null;
+            if (hasRed || hasYellow) {
+                if (!hasRed || !hasYellow) {
+                    pushError(errors, path, 'redPlayer and yellowPlayer must both be present when either is set');
+                } else {
+                    const redOk = validateNameInPlayers(game.redPlayer, `${path}.redPlayer`, 'redPlayer', players, errors);
+                    const yellowOk = validateNameInPlayers(game.yellowPlayer, `${path}.yellowPlayer`, 'yellowPlayer', players, errors);
+                    if (redOk && p1Ok && p2Ok && game.redPlayer !== game.player1 && game.redPlayer !== game.player2) {
+                        pushError(errors, `${path}.redPlayer`, 'must be player1 or player2');
+                    }
+                    if (yellowOk && p1Ok && p2Ok && game.yellowPlayer !== game.player1 && game.yellowPlayer !== game.player2) {
+                        pushError(errors, `${path}.yellowPlayer`, 'must be player1 or player2');
+                    }
+                    if (redOk && yellowOk && game.redPlayer === game.yellowPlayer) {
+                        pushError(errors, path, 'redPlayer and yellowPlayer must be different');
+                    }
+                }
             }
         }
 

@@ -26,6 +26,38 @@
             font-size: 0.875rem;
             letter-spacing: 0.5px;
         }
+        #ball-slider {
+            position: relative;
+            width: 100%;
+            height: 52px;
+            background: rgb(24 24 27);
+            border: 1px solid rgb(63 63 70);
+            border-radius: 9999px;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #ball-slider .ball {
+            position: absolute;
+            top: 50%;
+            width: 44px;
+            height: 44px;
+            margin-top: -22px;
+            margin-left: -22px;
+            border-radius: 50%;
+            cursor: grab;
+            touch-action: none;
+            z-index: 1;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.45), inset 0 -3px 6px rgba(0,0,0,0.25);
+        }
+        #ball-slider .ball:active { cursor: grabbing; }
+        #ball-slider .ball-red {
+            background: radial-gradient(circle at 32% 28%, #f07080 0%, #c41e3a 55%, #8b1528 100%);
+        }
+        #ball-slider .ball-yellow {
+            background: radial-gradient(circle at 32% 28%, #f5e070 0%, #e6b800 55%, #b38f00 100%);
+        }
+        #ball-slider .ball.hidden-ball { display: none; }
     </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 h-full overflow-hidden">
@@ -77,15 +109,18 @@
                         <!-- Populated by JS -->
                     </div>
 
-                    <div class="mb-4">
-                        <p class="text-zinc-400 text-xs mb-2 text-center">Breaker</p>
+                    <div class="mb-3">
                         <div id="breaker-display" class="py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-emerald-400 border border-emerald-500/30">
                             <!-- Populated by JS -->
                         </div>
                     </div>
 
+                    <div id="ball-slider" class="mb-3" aria-label="Ball colour assignment">
+                        <div id="ball-red" class="ball ball-red" data-ball="red"></div>
+                        <div id="ball-yellow" class="ball ball-yellow hidden-ball" data-ball="yellow"></div>
+                    </div>
+
                     <div>
-                        <p class="text-zinc-400 text-xs mb-2 text-center">Who won this match?</p>
                         <div id="winner-buttons" class="grid grid-cols-2 gap-3"></div>
                     </div>
                     <button onclick="endSession()" 
@@ -164,6 +199,9 @@
         let timerInterval = null;
         let setupPlayers = [];
         let statsSubTab = 'history';
+        let currentBallSide = null; // 'left' | 'right' | null
+        let ballAssignMatchKey = null;
+        let ballDrag = null;
         const PLAYER_COLORS = ['emerald', 'amber', 'sky', 'violet', 'rose', 'lime', 'cyan', 'fuchsia'];
         const COLOR_TEXT = {
             emerald: 'text-emerald-400', amber: 'text-amber-400', sky: 'text-sky-400', violet: 'text-violet-400',
@@ -657,6 +695,7 @@
 
             // Roll the match index back so the deleted game becomes the current one again
             currentSession.currentMatchIndex = Math.max(0, (currentSession.currentMatchIndex || 0) - 1);
+            resetBallAssignment();
 
             saveData();
             renderCurrentSession();
@@ -679,6 +718,185 @@
                 list.classList.add('hidden');
                 chevron.classList.remove('rotate-180');
             }
+        }
+
+        function syncBallAssignMatchKey() {
+            if (!currentSession) {
+                currentBallSide = null;
+                ballAssignMatchKey = null;
+                return;
+            }
+            const key = currentSession.currentMatchIndex || 0;
+            if (ballAssignMatchKey !== key) {
+                ballAssignMatchKey = key;
+                currentBallSide = null;
+            }
+        }
+
+        function getBallTrackMetrics() {
+            const track = $('ball-slider');
+            if (!track) return null;
+            const rect = track.getBoundingClientRect();
+            const ballSize = 44;
+            const pad = ballSize / 2;
+            const minX = pad;
+            const maxX = Math.max(pad, rect.width - pad);
+            const midX = (minX + maxX) / 2;
+            const deadHalf = (maxX - minX) * 0.15;
+            return { track, rect, minX, maxX, midX, deadHalf, leftX: minX, rightX: maxX };
+        }
+
+        function setBallLeft(el, x) {
+            if (!el) return;
+            el.style.left = `${x}px`;
+        }
+
+        function applyBallSliderVisual(side, dragX) {
+            const metrics = getBallTrackMetrics();
+            const red = $('ball-red');
+            const yellow = $('ball-yellow');
+            if (!metrics || !red || !yellow) return;
+
+            const { leftX, rightX, midX } = metrics;
+
+            if (side === 'left') {
+                yellow.classList.remove('hidden-ball');
+                setBallLeft(red, leftX);
+                setBallLeft(yellow, rightX);
+                return;
+            }
+            if (side === 'right') {
+                yellow.classList.remove('hidden-ball');
+                setBallLeft(red, rightX);
+                setBallLeft(yellow, leftX);
+                return;
+            }
+
+            // Unassigned / center
+            if (typeof dragX === 'number') {
+                setBallLeft(red, dragX);
+                if (dragX < midX) {
+                    yellow.classList.remove('hidden-ball');
+                    setBallLeft(yellow, rightX);
+                } else if (dragX > midX) {
+                    yellow.classList.remove('hidden-ball');
+                    setBallLeft(yellow, leftX);
+                } else {
+                    yellow.classList.add('hidden-ball');
+                }
+            } else {
+                yellow.classList.add('hidden-ball');
+                setBallLeft(red, midX);
+            }
+        }
+
+        function renderBallSlider() {
+            syncBallAssignMatchKey();
+            applyBallSliderVisual(currentBallSide, null);
+            setupBallSliderEvents();
+        }
+
+        function setupBallSliderEvents() {
+            const track = $('ball-slider');
+            const red = $('ball-red');
+            const yellow = $('ball-yellow');
+            if (!track || !red || !yellow) return;
+            if (track.dataset.ballBound === '1') return;
+            track.dataset.ballBound = '1';
+
+            const onPointerDown = (e) => {
+                const ballEl = e.target.closest('.ball');
+                if (!ballEl || ballEl.classList.contains('hidden-ball')) return;
+                e.preventDefault();
+                const metrics = getBallTrackMetrics();
+                if (!metrics) return;
+                const color = ballEl.dataset.ball;
+                ballDrag = {
+                    pointerId: e.pointerId,
+                    color,
+                    startSide: currentBallSide
+                };
+                try { ballEl.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+                const x = Math.min(metrics.maxX, Math.max(metrics.minX, e.clientX - metrics.rect.left));
+                if (currentBallSide === null) {
+                    applyBallSliderVisual(null, x);
+                } else if (color === 'red') {
+                    applyBallSliderVisual(null, x);
+                    // keep yellow opposite during drag from assigned
+                    const y = $('ball-yellow');
+                    if (y) {
+                        y.classList.remove('hidden-ball');
+                        setBallLeft(y, x < metrics.midX ? metrics.rightX : metrics.leftX);
+                    }
+                } else {
+                    // dragging yellow: move yellow, red stays opposite
+                    setBallLeft(ballEl, x);
+                    setBallLeft(red, x < metrics.midX ? metrics.rightX : metrics.leftX);
+                }
+            };
+
+            const onPointerMove = (e) => {
+                if (!ballDrag || e.pointerId !== ballDrag.pointerId) return;
+                e.preventDefault();
+                const metrics = getBallTrackMetrics();
+                if (!metrics) return;
+                const x = Math.min(metrics.maxX, Math.max(metrics.minX, e.clientX - metrics.rect.left));
+                if (ballDrag.color === 'red' || ballDrag.startSide === null) {
+                    applyBallSliderVisual(null, x);
+                    if (ballDrag.startSide !== null) {
+                        const y = $('ball-yellow');
+                        if (y) {
+                            y.classList.remove('hidden-ball');
+                            setBallLeft(y, x < metrics.midX ? metrics.rightX : metrics.leftX);
+                        }
+                    }
+                } else {
+                    setBallLeft(yellow, x);
+                    setBallLeft(red, x < metrics.midX ? metrics.rightX : metrics.leftX);
+                    yellow.classList.remove('hidden-ball');
+                }
+            };
+
+            const finishDrag = (e) => {
+                if (!ballDrag || (e && e.pointerId !== ballDrag.pointerId)) return;
+                const metrics = getBallTrackMetrics();
+                if (!metrics) {
+                    ballDrag = null;
+                    return;
+                }
+                const clientX = e && typeof e.clientX === 'number' ? e.clientX : (metrics.rect.left + metrics.midX);
+                const x = Math.min(metrics.maxX, Math.max(metrics.minX, clientX - metrics.rect.left));
+
+                if (ballDrag.startSide === null) {
+                    // From center: dead zone stays unassigned
+                    if (x >= metrics.midX - metrics.deadHalf && x <= metrics.midX + metrics.deadHalf) {
+                        currentBallSide = null;
+                    } else {
+                        currentBallSide = x < metrics.midX ? 'left' : 'right';
+                    }
+                } else {
+                    // Assigned: snap left/right only (swap), never back to center
+                    currentBallSide = x < metrics.midX
+                        ? (ballDrag.color === 'red' ? 'left' : 'right')
+                        : (ballDrag.color === 'red' ? 'right' : 'left');
+                }
+                ballDrag = null;
+                applyBallSliderVisual(currentBallSide, null);
+            };
+
+            track.addEventListener('pointerdown', onPointerDown);
+            track.addEventListener('pointermove', onPointerMove);
+            track.addEventListener('pointerup', finishDrag);
+            track.addEventListener('pointercancel', finishDrag);
+        }
+
+        function resetBallAssignment() {
+            currentBallSide = null;
+            ballDrag = null;
+            if (currentSession) {
+                ballAssignMatchKey = currentSession.currentMatchIndex || 0;
+            }
+            applyBallSliderVisual(null, null);
         }
 
         function renderCurrentMatch() {
@@ -739,6 +957,7 @@
                 };
             }
 
+            renderBallSlider();
             renderWinnerButtons(matchTemplate);
             return true;
         }
@@ -1112,13 +1331,24 @@
                 const breakerName = match.breaker || (typeof match.breaker === 'number' ? (match.breaker === 1 ? (currentSession.players ? currentSession.players[0] : currentSession.player1) : (currentSession.players ? currentSession.players[1] : currentSession.player2)) : match.breaker);
                 const div = document.createElement('div');
                 div.className = `game-card bg-zinc-800 rounded-xl p-3 flex items-center justify-between text-sm`;
+                const hasColours = match.redPlayer && match.yellowPlayer;
+                const ballDot = (colour) =>
+                    `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin:0 2px;background:${colour === 'red' ? '#c41e3a' : '#e6b800'};box-shadow:inset 0 -1px 2px rgba(0,0,0,0.3)"></span>`;
+                let vsLine;
+                if (hasColours) {
+                    const p1Ball = match.redPlayer === match.player1 ? ballDot('red') : ballDot('yellow');
+                    const p2Ball = match.redPlayer === match.player2 ? ballDot('red') : ballDot('yellow');
+                    vsLine = `${p1Ball}${escapeHtml(match.player1 || '')} vs ${escapeHtml(match.player2 || '')}${p2Ball}`;
+                } else {
+                    vsLine = `${escapeHtml(match.player1 || '')} vs ${escapeHtml(match.player2 || '')}`;
+                }
                 div.innerHTML = `
                     <div class="flex items-center gap-3">
                         <div class="w-6 h-6 bg-zinc-700 rounded-lg flex items-center justify-center font-mono text-[10px]">${match.matchNum || i+1}</div>
                         <div class="text-xs">
                             <div class="text-zinc-400">${escapeHtml(breakerName)} broke</div>
                             <div class="font-medium">${escapeHtml(winnerName)} won</div>
-                            <div class="text-[10px] text-zinc-500">${escapeHtml(match.player1 || '')} vs ${escapeHtml(match.player2 || '')}</div>
+                            <div class="text-[10px] text-zinc-500">${vsLine}</div>
                         </div>
                     </div>
                     <div class="text-right text-emerald-400 text-xs font-mono">
@@ -1164,6 +1394,13 @@
                 duration: duration,
                 round: Math.floor((currentSession.currentMatchIndex || 0) / schedule.length) + 1
             };
+            if (currentBallSide === 'left') {
+                result.redPlayer = matchTemplate.player1;
+                result.yellowPlayer = matchTemplate.player2;
+            } else if (currentBallSide === 'right') {
+                result.redPlayer = matchTemplate.player2;
+                result.yellowPlayer = matchTemplate.player1;
+            }
             currentSession.playedGames = currentSession.playedGames || [];
             currentSession.playedGames.push(result);
             currentSession.games = currentSession.games || [];
@@ -1171,6 +1408,7 @@
             currentSession.currentMatchIndex = (currentSession.currentMatchIndex || 0) + 1;
             // Accumulate total duration
             currentSession.totalDuration = (currentSession.totalDuration || 0) + duration;
+            resetBallAssignment();
             saveData();
             renderCurrentSession();
 
