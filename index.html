@@ -29,10 +29,10 @@
         #ball-slider {
             position: relative;
             width: 100%;
-            height: 52px;
+            height: 48px;
             background: rgb(24 24 27);
             border: 1px solid rgb(63 63 70);
-            border-radius: 9999px;
+            border-radius: 1rem;
             touch-action: none;
             user-select: none;
             -webkit-user-select: none;
@@ -100,17 +100,17 @@
             <!-- Current Session -->
             <div id="current-session" class="screen-hidden flex-1 min-h-0 overflow-y-auto bg-zinc-900 rounded-3xl p-4 shadow-2xl">
                 <!-- Current Match controls (moved to top) -->
-                <div class="bg-zinc-800/70 rounded-2xl p-4 mb-6">
-                    <div class="flex justify-center items-center mb-4">
+                <div class="bg-zinc-800/70 rounded-2xl p-3 mb-4">
+                    <div class="flex justify-center items-center mb-3">
                         <h3 class="text-base font-semibold text-center w-full"><i class="fas fa-gamepad text-sm"></i> <span id="match-counter" class="font-mono">Game 1 - Set 1 (1/3)</span></h3>
                     </div>
 
-                    <div id="current-match-players" class="bg-zinc-950 rounded-2xl p-4 mb-6 text-center border border-zinc-700">
+                    <div id="current-match-players" class="bg-zinc-950 rounded-2xl p-3 mb-3 text-center border border-zinc-700">
                         <!-- Populated by JS -->
                     </div>
 
                     <div class="mb-3">
-                        <div id="breaker-display" class="py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-emerald-400 border border-emerald-500/30">
+                        <div id="breaker-display" class="py-3 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 text-emerald-400 border border-emerald-500/30">
                             <!-- Populated by JS -->
                         </div>
                     </div>
@@ -124,17 +124,17 @@
                         <div id="winner-buttons" class="grid grid-cols-2 gap-3"></div>
                     </div>
                     <button onclick="endSession()" 
-                            class="w-full mt-4 py-2 text-red-400 hover:text-red-500 text-xs font-medium flex items-center justify-center gap-2 bg-red-950 hover:bg-red-900 rounded-xl transition-colors">
+                            class="w-full mt-3 py-1.5 text-red-400 hover:text-red-500 text-xs font-medium flex items-center justify-center gap-2 bg-red-950 hover:bg-red-900 rounded-xl transition-colors">
                         <i class="fas fa-stop text-xs"></i> END SESSION
                     </button>
                 </div>
 
                 <!-- Dynamic Player Scores -->
-                <div id="player-scores" class="mb-6 flex flex-wrap justify-center gap-4"></div>
+                <div id="player-scores" class="mb-3 flex flex-wrap justify-center gap-3"></div>
 
-                <div id="game-results" class="mb-5 flex gap-1.5 flex-wrap bg-zinc-800/50 rounded-xl p-2 min-h-10 items-center"></div>
+                <div id="game-results" class="mb-3 flex gap-1.5 flex-wrap bg-zinc-800/50 rounded-xl p-1.5 min-h-8 items-center"></div>
 
-                <div class="mt-4">
+                <div class="mt-3">
                     <div onclick="toggleGamesList()" class="flex items-center justify-between cursor-pointer mb-2">
                         <h3 class="text-sm font-medium flex items-center gap-2">
                             <i class="fas fa-list text-xs"></i> Games Played
@@ -568,7 +568,7 @@
                 const wins = getPlayerWins(player);
                 const color = getPlayerColor(player);
                 const div = document.createElement('div');
-                div.className = `bg-zinc-800 rounded-2xl p-4 text-center flex-1 min-w-[110px] border border-transparent transition-all ${COLOR_BORDER_HOVER[color] || ''}`;
+                div.className = `bg-zinc-800 rounded-2xl p-2 text-center flex-1 min-w-[90px] border border-transparent transition-all ${COLOR_BORDER_HOVER[color] || ''}`;
                 div.innerHTML = `
                     <div class="text-5xl font-bold ${COLOR_TEXT[color] || 'text-emerald-400'} mb-1">${wins}</div>
                     <div class="text-[10px] uppercase tracking-widest text-zinc-500">${escapeHtml(player)}</div>
@@ -942,7 +942,7 @@
             const breakerColor = getPlayerColor(effectiveBreaker);
             const breakerDiv = $('breaker-display');
             if (breakerDiv) {
-                breakerDiv.className = `py-4 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 ${COLOR_TEXT[breakerColor] || 'text-emerald-400'} border ${COLOR_BORDER[breakerColor] || 'border-emerald-500/30'} cursor-pointer hover:bg-zinc-800 active:scale-[0.98] transition-all`;
+                breakerDiv.className = `py-3 bg-zinc-900 rounded-2xl text-lg font-semibold flex items-center justify-center gap-3 ${COLOR_TEXT[breakerColor] || 'text-emerald-400'} border ${COLOR_BORDER[breakerColor] || 'border-emerald-500/30'} cursor-pointer hover:bg-zinc-800 active:scale-[0.98] transition-all`;
                 breakerDiv.title = 'Click to change breaker';
                 breakerDiv.innerHTML = `
                     <i class="fas fa-gavel"></i>
@@ -971,9 +971,9 @@
             [p1, p2].forEach(playerName => {
                 const color = getPlayerColor(playerName);
                 const btn = document.createElement('button');
-                btn.className = `group py-6 rounded-3xl font-bold text-lg flex flex-col items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 ${COLOR_BORDER_HOVER[color] || 'hover:border-emerald-400'} transition-all active:scale-[0.98]`;
+                btn.className = `group py-3 rounded-3xl font-bold text-lg flex flex-col items-center justify-center gap-1 bg-zinc-800 hover:bg-zinc-700 border-2 border-zinc-700 ${COLOR_BORDER_HOVER[color] || 'hover:border-emerald-400'} transition-all active:scale-[0.98]`;
                 btn.innerHTML = `
-                    <i class="fas fa-trophy text-2xl ${COLOR_TEXT[color] || 'text-emerald-400'} group-active:scale-110 transition-transform"></i>
+                    <i class="fas fa-trophy text-xl ${COLOR_TEXT[color] || 'text-emerald-400'} group-active:scale-110 transition-transform"></i>
                     <span class="${COLOR_TEXT_SOFT[color] || 'text-emerald-100'}">${escapeHtml(playerName)}</span>
                 `;
                 btn.onclick = () => declareMatchWinner(playerName);
