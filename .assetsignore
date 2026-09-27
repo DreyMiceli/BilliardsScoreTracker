@@ -1,0 +1,13 @@
+.git
+**/.git/**
+.github
+.vscode
+.gitignore
+.assetsignore
+.wrangler
+node_modules
+wrangler.jsonc
+README.md
+index1.html
+.DS_Store
+Thumbs.db

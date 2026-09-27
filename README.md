@@ -56,7 +56,7 @@ Sessions resume automatically if you leave mid-tournament — unfinished play is
 - Safe load/save with corrupt-data recovery
 - Legacy 2-player session format still supported
 - Null-safe timer and DOM handling for stable mobile use
-- Raw backup editor at `/Storage.html` — view, validate, save, share, download, or import the `billiardsSessions` JSON
+- Raw backup editor at `/storage` — view, validate, save, share, download, or import the `billiardsSessions` JSON
 
 ### UI
 - Dark, mobile-first layout (Tailwind CSS)
@@ -85,14 +85,14 @@ Sessions resume automatically if you leave mid-tournament — unfinished play is
 
 ## Local development
 
-Open `index.html` in a browser, or serve the folder with any static server:
+Open `public/index.html` in a browser, or serve the `public/` folder:
 
 ```bash
 # example
-npx serve .
+npx serve public
 ```
 
-Deploy with Wrangler (see `wrangler.jsonc`):
+Deploy with Wrangler (see `wrangler.jsonc`). Only `public/` is uploaded as static assets, so `.git`, Wrangler config, and other repo files are not published:
 
 ```bash
 npx wrangler deploy
@@ -102,10 +102,11 @@ npx wrangler deploy
 
 ```
 BilliardsScoreTracker/
-├── index.html      # App UI + logic
-├── Storage.html    # Raw localStorage backup / JSON editor
-├── favicon.svg     # App icon
-├── wrangler.jsonc  # Cloudflare Workers static deploy config
+├── public/
+│   ├── index.html      # App UI + logic → /
+│   ├── storage.html    # Raw localStorage backup / JSON editor → /storage
+│   └── favicon.svg     # App icon
+├── wrangler.jsonc      # Cloudflare Workers config (assets.directory = ./public)
 └── README.md
 ```
 
